@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "printf \"%s\" \"{\\\"hookSpecificOutput\\\":{\\\"hookEventName\\\":\\\"UserPromptSubmit\\\",\\\"additionalContext\\\":\\\"Task check: before responding, compare plan/tasks.md with the current state of the repo and conversation. Tick (- [x]) every subtask that is complete and approved, and mention which ones you ticked. Do not tick a subtask that is still awaiting the user review (see the workflow rule in CLAUDE.md).\\\"}}\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

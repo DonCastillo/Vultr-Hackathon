@@ -14,6 +14,18 @@ This repo is the entry for the **Vultr: Agent Rush Hackathon**, Track 2 "Powerin
 
 When the design changes, keep these four docs consistent with each other.
 
+## Workflow rule: one subtask at a time, reviewed before commit
+
+- Work on **exactly one subtask** from `plan/tasks.md` at a time (e.g. `1.1`, then `1.2`). Don't start the next one until the user says so.
+- When a subtask is done, **stop and hand it over for review**:
+  - the subtask number
+  - the files changed
+  - how it was verified (commands run and their results)
+  - anything left open
+- **Never commit without the user's explicit approval** of that subtask. After approval, make one commit per subtask, with a message starting with the subtask number (e.g. `1.1: scaffold Next.js 15 app`). Tick its checkbox in `plan/tasks.md` in the same commit.
+- If review feedback asks for changes, apply them to the same subtask and hand it over for review again.
+- On every user prompt, check `plan/tasks.md` against the actual state and tick any subtask that is done and approved, including the user's own `(you)` steps when the user reports them done. A `UserPromptSubmit` hook in `.claude/settings.json` sends this reminder.
+
 ## What we're building
 
 **CrewShift** is crew scheduling and sick-call recovery for a **single standalone coffee and donut shop**. The demo brand, "Maple & Mug Coffee Co.", is fictional. Never use real chain names or logos in the app or seed data.
