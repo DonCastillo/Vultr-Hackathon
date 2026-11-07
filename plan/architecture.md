@@ -202,6 +202,7 @@ erDiagram
     Store ||--o{ Crew : employs
     Store ||--o{ CoverageRule : defines
     Store ||--|| RuleConfig : uses
+    Store ||--o{ SchoolDay : observes
     Crew ||--o{ CrewStation : "trained on"
     Station ||--o{ CrewStation : ""
     Crew ||--o{ Cert : holds

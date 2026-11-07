@@ -59,7 +59,7 @@ Dayparts: Overnight (11pm–5am), **Morning Rush (5:30–10am, peak)**, Midday (
 - **Crew roster:** stations trained, certs, availability, student/minor flag
 
 ## Data model (prisma/schema.prisma)
-`Store` (single row: name, jurisdiction, timezone, open hours), `Station` (name, priority, requiresCert), `Crew` (name, phone, birthdate, isStudent, wage, seniority, reliability), `CrewStation` (level), `Cert` (type, expiresAt), `Availability`, `TimeOff`, `Shift` (crewId, start, end), `StationAssignment` (shiftId, stationId, start, end), `CoverageRule` (stationId, weekday, daypart, minCount), `CallOut`, `RecoveryPlan` (moves JSON, shortfall JSON, summary), `Offer` (callOutId, crewId, stationId, kind: callin/extend, rank, status, expiresAt), `Message`, `AuditEvent`, `RuleConfig`.
+`Store` (single row: name, jurisdiction, timezone, open hours), `Station` (name, priority, requiresCert), `Crew` (name, phone, birthdate, isStudent, wage, seniority, reliability), `CrewStation` (level), `Cert` (type, expiresAt), `Availability`, `TimeOff`, `SchoolDay` (date), `Shift` (crewId, start, end), `StationAssignment` (shiftId, stationId, start, end), `CoverageRule` (stationId, weekday, daypart, minCount), `CallOut`, `RecoveryPlan` (moves JSON, shortfall JSON, summary), `Offer` (callOutId, crewId, stationId, kind: callin/extend, rank, status, expiresAt), `Message`, `AuditEvent`, `RuleConfig`.
 
 ## Key files
 - `lib/rules/{eligibility,youth,overtime,coverage}.ts` + `lib/rules/presets.ts` (ON/BC/US): pure, with vitest tests
