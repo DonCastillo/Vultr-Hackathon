@@ -31,7 +31,7 @@ Cut-line tasks (not counted in the totals above) add up to about 2.5h, which can
 - [ ] P.7 **(you)** ✂️ Twilio trial account, verify your phone, buy a number (15m)
 
 ## 1. Scaffold & data | 2.5h
-- [ ] 1.1 Next.js 15 + TypeScript + Tailwind + shadcn/ui init; ESLint/Prettier (20m)
+- [x] 1.1 Next.js 15 + TypeScript + Tailwind + shadcn/ui init; ESLint/Prettier (20m)
 - [ ] 1.2 `docker-compose.yml` with Postgres 16; `.env.example` (15m)
 - [ ] 1.3 Prisma schema: Store, Station, Crew, CrewStation, Cert, Availability, TimeOff, Shift, StationAssignment, CoverageRule, CallOut, RecoveryPlan, Offer, Message, AuditEvent, RuleConfig (40m)
 - [ ] 1.4 `prisma/seed.ts`: standalone Maple & Mug store (Ontario), 9 stations, dayparts, coverage template (20m)
