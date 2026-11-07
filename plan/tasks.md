@@ -9,12 +9,12 @@ Legend: **(you)** = account step only you can do · **✂️ cut-line** = drop f
 | P. Prerequisites (you) | 0.75h | 0.75h |
 | 1. Scaffold & data | 2.5h | 3.25h |
 | 2. Rules engine & solver | 4.5h | 7.75h |
-| 3. LLM (Vultr Inference) | 2h | 9.75h |
-| 4. Manager UI | 5.5h | 15.25h |
-| 5. Call-out flow & outreach | 4.75h | 20h |
-| 6. Deploy to Vultr | 1.75h | 21.75h |
-| 7. Polish & README | 2h | 23.75h |
-| 8. Submission assets | 3h | 26.75h |
+| 3. LLM (Claude + Vultr Inference) | 2.25h | 10h |
+| 4. Manager UI | 5.5h | 15.5h |
+| 5. Call-out flow & outreach | 4.75h | 20.25h |
+| 6. Deploy to Vultr | 1.75h | 22h |
+| 7. Polish & README | 2h | 24h |
+| 8. Submission assets | 3h | 27h |
 | Buffer | ~3h | ~30h |
 
 Cut-line tasks (not counted in the totals above) add up to about 2.5h, which can be dropped to grow the buffer.
@@ -22,9 +22,10 @@ Cut-line tasks (not counted in the totals above) add up to about 2.5h, which can
 ---
 
 ## P. Prerequisites (you) | 0.75h
-- [ ] **(you)** Create a Vultr account with an email never used on Vultr, and verify it (10m)
-- [ ] **(you)** Billing → Promotions → apply the hackathon gift code; confirm $200.00 credit (5m)
-- [ ] **(you)** Enable Serverless Inference, create an API key, and put it in `.env` as `VULTR_INFERENCE_API_KEY` (10m)
+- [x] **(you)** Create a Vultr account with an email never used on Vultr, and verify it (10m)
+- [ ] **(you)** Billing → Promotions → apply the hackathon gift code; confirm $200.00 credit (5m) ⏳ **Blocked (Nov 7):** the event ran out of codes; organizers say they will replenish them. Fallback: add a payment method to start, since VM costs are hourly and small.
+- [ ] **(you)** Enable Serverless Inference, create an API key, and put it in `.env` as `VULTR_INFERENCE_API_KEY` (10m) ⏳ blocked on credits
+- [ ] **(you)** Create an Anthropic API key and put it in `.env` as `ANTHROPIC_API_KEY` with `LLM_PROVIDER=anthropic` (10m)
 - [ ] **(you)** Add an SSH key in the Vultr console (5m)
 - [ ] **(you)** Deploy a Cloud Compute VM: Ubuntu 24.04, 2 vCPU / 4 GB (can wait until Phase 6) (10m)
 - [ ] **(you)** ✂️ Twilio trial account, verify your phone, buy a number (15m)
@@ -47,8 +48,10 @@ Cut-line tasks (not counted in the totals above) add up to about 2.5h, which can
 - [ ] `lib/rank.ts`: replacement scoring (no-OT, fairness, reliability, seniority) + shift-extension candidates (30m)
 - [ ] vitest suite for all of the above (edge cases from the plan's Verification section) (45m)
 
-## 3. LLM via Vultr Serverless Inference | 2h
-- [ ] `lib/llm.ts`: OpenAI SDK client with `baseURL=https://api.vultrinference.com/v1`; list models, choose a default (20m)
+## 3. LLM: Anthropic Claude + Vultr Serverless Inference | 2.25h
+- [ ] `lib/llm/index.ts`: provider-agnostic interface, `LLM_PROVIDER` switch, shared prompts + zod schemas (20m)
+- [ ] `lib/llm/anthropic.ts`: `@anthropic-ai/sdk` adapter, default `claude-haiku-5-5` (15m)
+- [ ] `lib/llm/vultr.ts`: `openai` SDK adapter with `baseURL=https://api.vultrinference.com/v1`; list models and choose a default (wire it up when the key arrives) (15m)
 - [ ] `parseCallout`: free-text SMS → `{crewId, shiftId, reason}` with zod validation (25m)
 - [ ] `summarizePlan` + per-candidate rationale (25m)
 - [ ] `composeOffer`: personalized offer text (15m)
@@ -90,7 +93,7 @@ Cut-line tasks (not counted in the totals above) add up to about 2.5h, which can
 ## 7. Polish & README | 2h
 - [ ] "Reset demo" button (reseed) for judges (15m)
 - [ ] UI polish: empty states, loading states, toasts, mobile check of manager views (45m)
-- [ ] README: problem, Vultr services used (Cloud Compute, Serverless Inference), architecture diagram, setup, use case, how the agent runs real tasks (45m)
+- [ ] README: problem, Vultr services used (Cloud Compute, plus Serverless Inference if enabled), LLM provider switch, architecture diagram, setup, use case, how the agent runs real tasks (45m)
 - [ ] Run vitest + E2E checklist; race test (two simultaneous accepts) (15m)
 
 ## 8. Submission assets | 3h

@@ -1,6 +1,6 @@
 # CrewShift Architecture
 
-CrewShift is the crew scheduling and sick-call recovery app for **Maple & Mug Coffee Co.**, a standalone coffee shop (fictional demo brand). Everything runs on **Vultr**: one Cloud Compute VM hosts the app, worker and database, and **Vultr Serverless Inference** provides the LLM.
+CrewShift is the crew scheduling and sick-call recovery app for **Maple & Mug Coffee Co.**, a standalone coffee shop (fictional demo brand). Everything runs on **Vultr**: one Cloud Compute VM hosts the app, worker and database, and the LLM comes from **Vultr Serverless Inference** or **Anthropic Claude**, chosen with one env var (`LLM_PROVIDER=vultr|anthropic`).
 
 See [plan.md](plan.md) for the product scope and [tasks.md](tasks.md) for the build checklist.
 
@@ -18,10 +18,13 @@ flowchart LR
         LLM["Vultr Serverless Inference<br/>api.vultrinference.com/v1"]
     end
 
+    Claude["Anthropic Claude API<br/>(alternative provider)"]
+
     Twilio["Twilio SMS<br/>(optional)"]
 
     Manager -- "HTTPS: schedule, approve plans" --> App
-    App -- "chat completions (JSON)" --> LLM
+    App -- "LLM_PROVIDER=vultr" --> LLM
+    App -. "LLM_PROVIDER=anthropic" .-> Claude
     App -- "send SMS" --> Twilio
     Twilio -- "SMS" --> Crew
     Crew -- "replies" --> Twilio
@@ -52,6 +55,8 @@ flowchart TB
     Worker --> DB
     Web -.->|HTTPS| Inference["Vultr Serverless Inference"]
     Worker -.->|HTTPS| Inference
+    Web -.->|"HTTPS (alt)"| Claude["Anthropic API"]
+    Worker -.->|"HTTPS (alt)"| Claude
     Web -.->|HTTPS| Twilio["Twilio API (optional)"]
     Worker -.->|HTTPS| Twilio
 ```
@@ -63,7 +68,7 @@ flowchart TB
 | `worker` | Expires offers and escalates to the next candidate | none |
 | `postgres` | All app state | internal only |
 
-Firewall: only 22, 80 and 443 are open. Secrets (`VULTR_INFERENCE_API_KEY`, `TWILIO_*`, `DATABASE_URL`) live in `.env` on the VM, never in the repo.
+Firewall: only 22, 80 and 443 are open. Secrets (`LLM_PROVIDER`, `VULTR_INFERENCE_API_KEY`, `ANTHROPIC_API_KEY`, `TWILIO_*`, `DATABASE_URL`) live in `.env` on the VM, never in the repo.
 
 The upgrade path is to move Postgres to **Vultr Managed Database** and run `web` replicas behind a **Vultr Load Balancer**.
 
@@ -128,7 +133,7 @@ sequenceDiagram
     actor C as Sick crew member
     participant S as SMS (sim / Twilio)
     participant W as web (Next.js)
-    participant L as Vultr Inference
+    participant L as LLM (Vultr or Claude)
     participant R as Rules + Solver + Rank
     participant D as Postgres
     actor M as Manager
@@ -234,9 +239,16 @@ erDiagram
 
 ---
 
-## 7. LLM usage (Vultr Serverless Inference)
+## 7. LLM usage (provider-agnostic)
 
-All calls go through `lib/llm.ts` using the OpenAI SDK with `baseURL = https://api.vultrinference.com/v1`.
+All calls go through `lib/llm/index.ts`, which exposes the four functions below and delegates to one adapter selected by `LLM_PROVIDER`:
+
+| Provider | Adapter | Client | Default model | Env vars |
+|---|---|---|---|---|
+| `vultr` | `lib/llm/vultr.ts` | `openai` SDK, `baseURL = https://api.vultrinference.com/v1` | from `GET /v1/models` | `VULTR_INFERENCE_API_KEY`, `VULTR_MODEL` |
+| `anthropic` | `lib/llm/anthropic.ts` | `@anthropic-ai/sdk` | `claude-haiku-5-5` | `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL` |
+
+Prompts and zod schemas are shared, so only the transport differs. The provider and model used are recorded in each `AuditEvent` payload and on `RecoveryPlan`. If the key for the configured provider is missing, the app runs on fallbacks only.
 
 | Function | Input | Output (zod-validated) | Fallback |
 |---|---|---|---|
@@ -262,7 +274,7 @@ app/
   api/callouts/…              create, apply, events (SSE)
   api/sms/inbound/            Twilio webhook + sim
 lib/
-  rules/  solver/  rank.ts  outreach.ts  llm.ts  sms/  audit.ts  db.ts
+  rules/  solver/  rank.ts  outreach.ts  llm/  sms/  audit.ts  db.ts
 worker/index.ts               timeout/escalation loop
 prisma/schema.prisma, seed.ts
 docker-compose.yml  Dockerfile  Caddyfile

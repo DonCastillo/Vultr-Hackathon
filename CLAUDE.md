@@ -30,7 +30,9 @@ The manager schedules crew by day, time and **station** (Drive-Thru headset/wind
 - Next.js 15 (App Router, TypeScript), Tailwind + shadcn/ui, dnd-kit
 - Postgres 16 + Prisma
 - Separate worker process (`worker/index.ts`, run with `tsx`) that polls every 5s for expired offers
-- Vultr Serverless Inference via the `openai` SDK with `baseURL=https://api.vultrinference.com/v1`
+- LLM provider switch `LLM_PROVIDER=anthropic|vultr`:
+  - `anthropic`: `@anthropic-ai/sdk`, default `claude-haiku-5-5`. Used for development while the Vultr gift codes are out of stock.
+  - `vultr`: Vultr Serverless Inference via the `openai` SDK with `baseURL=https://api.vultrinference.com/v1`. The preferred demo default once credits arrive.
 - SMS provider abstraction: `sim` (default, in-app phone simulator at `/sim`) or `twilio`
 - vitest
 - Deploy: one Vultr Cloud Compute VM running docker compose (`caddy`, `web`, `worker`, `postgres`), with Caddy auto-TLS on `<ip>.sslip.io`
@@ -45,7 +47,7 @@ Once the project is scaffolded, replace this section with the actual commands (d
   - the rebalance solver: `lib/solver/rebalance.ts`
   - ranking: `lib/rank.ts`
 
-  The LLM (`lib/llm.ts`) does only four things: `parseCallout`, `summarizePlan`, `composeOffer` and `classifyReply`. Every call is zod-validated with a timeout and a keyword/template fallback, so the flow still works without inference.
+  The LLM (`lib/llm/`) does only four things: `parseCallout`, `summarizePlan`, `composeOffer` and `classifyReply`. `index.ts` holds the shared prompts and zod schemas; `anthropic.ts` and `vultr.ts` are thin transport adapters. New LLM features go in `index.ts`, never in one adapter only. Every call is zod-validated with a timeout and a keyword/template fallback, so the flow still works without inference.
 - **Manager approval gates every change.** Station moves and outreach start only after approval; overtime candidates need an explicit `otApproved`.
 - **One live offer per call-out.** This is enforced by a partial unique index on `Offer(callOutId) WHERE status IN ('SENT','CLARIFYING')`, created in a raw SQL migration because Prisma can't express it. Acceptance runs in a transaction with `SELECT … FOR UPDATE` on the CallOut, so only the first acceptor wins.
 - **State machines:**
@@ -58,7 +60,7 @@ Once the project is scaffolded, replace this section with the actual commands (d
 
 ## Submission requirements to keep in mind
 
-The README must explain which Vultr services are used (Cloud Compute, Serverless Inference), the backend/deployment architecture, and how the agent runs real tasks. Also required:
+The README must explain which Vultr services are used (Cloud Compute, plus Serverless Inference if enabled), the backend/deployment architecture, and how the agent runs real tasks. Also required:
 - a public GitHub repo
 - a live app URL on Vultr
 - a demo video

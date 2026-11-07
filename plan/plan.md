@@ -2,7 +2,7 @@
 
 ## Context
 Hackathon deadline: **Nov 8, 2026, 5:00 PM MDT** (~30h). The repo is empty (README, LICENSE, `plan/` with the requirements PDF).
-Track 2 "Powering the Future of Work" asks for a production-style web app with multi-step agentic workflows, with a Vultr VM as the backend. Serverless Inference is optional, but we use it because "Application of Technology" is a judging criterion.
+Track 2 "Powering the Future of Work" asks for a production-style web app with multi-step agentic workflows, with a Vultr VM as the backend. Serverless Inference is optional for Track 2. The LLM layer supports **two providers behind one switch**: Anthropic Claude (used for development now, while the Vultr gift codes are out of stock) and Vultr Serverless Inference (the preferred demo default once credits arrive, since judges score "Application of Technology" and Vultr is the sponsor).
 
 **Product:** crew management for a **standalone, independently owned** quick-service coffee and donut shop. It runs like a Tim Hortons-style store (5am open, a huge morning drive-thru rush, an overnight baker), but it is one location with no chain or franchise behind it.
 - The **store manager builds the weekly schedule**: who works which day and time, and **which station** they own in each block.
@@ -20,7 +20,9 @@ Dayparts: Overnight (11pm–5am), **Morning Rush (5:30–10am, peak)**, Midday (
 - **Next.js 15 (App Router, TypeScript)**, Tailwind + shadcn/ui, dnd-kit for drag-and-drop scheduling, mobile-friendly manager views
 - **Postgres 16 + Prisma** in docker-compose on the VM (the README notes Vultr Managed DB as the upgrade path)
 - **Worker process** (`tsx worker/index.ts`): offer timeouts and escalation, polling every 5s
-- **Vultr Serverless Inference** via the `openai` SDK with `baseURL=https://api.vultrinference.com/v1`, JSON output (model picked from `GET /v1/models`)
+- **LLM provider switch** (`LLM_PROVIDER`):
+  - `anthropic`: `@anthropic-ai/sdk`, default model **Claude Haiku 5.5** (`claude-haiku-5-5`) for speed; `claude-sonnet-5-5` if summaries need better wording
+  - `vultr`: Vultr Serverless Inference via the `openai` SDK with `baseURL=https://api.vultrinference.com/v1`, JSON output (model picked from `GET /v1/models`)
 - **SMS abstraction:** `sim` (default) is an in-app crew phone simulator. `twilio` is used when env vars are set (trial account texting a verified phone for the live demo).
 - **Deploy:** one Vultr Cloud Compute VM (2 vCPU/4 GB, Ubuntu 24.04) running docker-compose (app, worker, postgres, Caddy). Caddy gets auto-TLS on `<ip>.sslip.io`.
 
@@ -64,7 +66,7 @@ Dayparts: Overnight (11pm–5am), **Morning Rush (5:30–10am, peak)**, Midday (
 ## Key files
 - `lib/rules/{eligibility,youth,overtime,coverage}.ts` + `lib/rules/presets.ts` (ON/BC/US): pure, with vitest tests
 - `lib/solver/rebalance.ts`, `lib/rank.ts`
-- `lib/llm.ts`: Vultr Inference client + prompts (parseCallout, summarizePlan, composeOffer, classifyReply), zod-validated with keyword fallback
+- `lib/llm/` (`index.ts` provider-agnostic interface, `anthropic.ts`, `vultr.ts`) + prompts (parseCallout, summarizePlan, composeOffer, classifyReply), zod-validated with keyword fallback
 - `lib/sms/{index,sim,twilio}.ts`, `lib/outreach.ts` (state machine), `worker/index.ts`
 - `app/(app)/schedule/week`, `app/(app)/schedule/day/[date]`, `app/(app)/callouts/[id]`, `app/(app)/crew`, `app/sim`, `app/settings`
 - API: `POST /api/callouts`, `POST /api/callouts/[id]/apply`, `POST /api/sms/inbound`, `GET /api/callouts/[id]/events` (SSE)
@@ -75,7 +77,7 @@ Dayparts: Overnight (11pm–5am), **Morning Rush (5:30–10am, peak)**, Midday (
 0. **First action after approval, then stop for review:** save this plan to `plan/plan.md`, and write `plan/tasks.md`, a step-by-step checklist (`- [ ]`) grouped by the phases below. Each task gets an hour estimate, with a running total per phase and overall. Mark the cut-line tasks and the "you do" account prerequisites. No code is written until you review these.
 1. **(2h)** Scaffold Next.js + Prisma + compose; schema; seed
 2. **(4h)** Rules engine + presets + coverage + rebalance solver + ranking, with vitest
-3. **(2h)** `lib/llm.ts` against Vultr Inference, with fallbacks
+3. **(2.25h)** `lib/llm/` with both providers (Claude first, Vultr when the key arrives), with fallbacks
 4. **(5h)** UI: week schedule (drag/drop + badges), day station board + coverage heatmap, crew roster
 5. **(4h)** Call-out flow: impact, recovery plan, apply moves, outreach, worker, phone simulator
 6. **(2h)** Deploy to Vultr VM; optional Twilio
@@ -85,7 +87,8 @@ Buffer: about 6h. **Cut-line if late:** drop auto-fill, labour %, Twilio and con
 
 ## Prerequisites you must do (account steps I can't do)
 1. Create a Vultr account with a fresh email and apply the hackathon gift code (check for $200)
-2. Enable Serverless Inference and create an API key
+2. Enable Serverless Inference and create an API key (blocked until gift codes are replenished)
+2a. Create an Anthropic API key (console.anthropic.com) for development in the meantime
 3. Deploy an Ubuntu 24.04 VM and add your SSH key (can wait until step 6)
 4. (Optional) Twilio trial account plus a verified phone
 

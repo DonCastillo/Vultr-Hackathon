@@ -231,6 +231,7 @@ The agent's proposed fix for a call-out (1:1 with CallOut).
 | `remainingShortfall` | Json → `JSONB` | not null | Gaps left after moves, to fill with Plan B |
 | `candidates` | Json → `JSONB` | not null | Ranked `[{crewId, kind, score, overtime, reasons[]}]` (Plan B snapshot) |
 | `summary` | String → `TEXT` | not null | LLM manager-facing summary |
+| `llmProvider` | String? → `TEXT` | | `anthropic` or `vultr` |
 | `llmModel` | String? → `TEXT` | | Model id used |
 | `appliedAt` | DateTime? → `TIMESTAMPTZ` | | When moves were applied |
 
