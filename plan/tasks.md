@@ -25,7 +25,7 @@ Cut-line tasks (not counted in the totals above) add up to about 2.5h, which can
 - [x] **(you)** Create a Vultr account with an email never used on Vultr, and verify it (10m)
 - [ ] **(you)** Billing → Promotions → apply the hackathon gift code; confirm $200.00 credit (5m) ⏳ **Blocked (Nov 7):** the event ran out of codes; organizers say they will replenish them. Fallback: add a payment method to start, since VM costs are hourly and small.
 - [ ] **(you)** Enable Serverless Inference, create an API key, and put it in `.env` as `VULTR_INFERENCE_API_KEY` (10m) ⏳ blocked on credits
-- [ ] **(you)** Create an Anthropic API key and put it in `.env` as `ANTHROPIC_API_KEY` with `LLM_PROVIDER=anthropic` (10m)
+- [x] **(you)** Create an Anthropic API key and put it in `.env` as `ANTHROPIC_API_KEY` with `LLM_PROVIDER=anthropic` (10m)
 - [ ] **(you)** Add an SSH key in the Vultr console (5m)
 - [ ] **(you)** Deploy a Cloud Compute VM: Ubuntu 24.04, 2 vCPU / 4 GB (can wait until Phase 6) (10m)
 - [ ] **(you)** ✂️ Twilio trial account, verify your phone, buy a number (15m)

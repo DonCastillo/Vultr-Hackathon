@@ -1,0 +1,17 @@
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# node / next
+node_modules/
+.next/
+out/
+dist/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# misc
+.DS_Store
+*.log
