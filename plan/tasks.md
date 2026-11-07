@@ -39,19 +39,19 @@ Cut-line tasks (not counted in the totals above) add up to about 2.5h, which can
 - [ ] 1.6 Seed a full week of shifts + station assignments, including the demo scenario (5:30am headset crew) (30m)
 
 ## 2. Rules engine & solver | 4.5h
-- [ ] 2.1 `lib/rules/presets.ts`: Ontario (44h, 11h rest), BC (8h/day + 40h/week), US FLSA (+ youth limits) (20m)
-- [ ] 2.2 `lib/rules/eligibility.ts`: training level, availability, PTO, overlap, rest gap/clopen, cert expiry (45m)
-- [ ] 2.3 `lib/rules/overtime.ts`: weekly/daily OT under each preset (20m)
-- [ ] 2.4 `lib/rules/youth.ts`: school-day hours, latest end time, restricted stations (20m)
-- [ ] 2.5 `lib/rules/coverage.ts`: required vs. scheduled per station per 15-min slot; shortfalls; supervisor rule (40m)
-- [ ] 2.6 `lib/solver/rebalance.ts`: greedy + backtracking station reassignment by priority (50m)
-- [ ] 2.7 `lib/rank.ts`: replacement scoring (no-OT, fairness, reliability, seniority) + shift-extension candidates (30m)
+- [ ] 2.1 `server/rules/presets.ts`: Ontario (44h, 11h rest), BC (8h/day + 40h/week), US FLSA (+ youth limits) (20m)
+- [ ] 2.2 `server/rules/eligibility.ts`: training level, availability, PTO, overlap, rest gap/clopen, cert expiry (45m)
+- [ ] 2.3 `server/rules/overtime.ts`: weekly/daily OT under each preset (20m)
+- [ ] 2.4 `server/rules/youth.ts`: school-day hours, latest end time, restricted stations (20m)
+- [ ] 2.5 `server/rules/coverage.ts`: required vs. scheduled per station per 15-min slot; shortfalls; supervisor rule (40m)
+- [ ] 2.6 `server/solver/rebalance.ts`: greedy + backtracking station reassignment by priority (50m)
+- [ ] 2.7 `server/rank.ts`: replacement scoring (no-OT, fairness, reliability, seniority) + shift-extension candidates (30m)
 - [ ] 2.8 vitest suite for all of the above (edge cases from the plan's Verification section) (45m)
 
 ## 3. LLM: Anthropic Claude + Vultr Serverless Inference | 2.25h
-- [ ] 3.1 `lib/llm/index.ts`: provider-agnostic interface, `LLM_PROVIDER` switch, shared prompts + zod schemas (20m)
-- [ ] 3.2 `lib/llm/anthropic.ts`: `@anthropic-ai/sdk` adapter, default `claude-haiku-5-5` (15m)
-- [ ] 3.3 `lib/llm/vultr.ts`: `openai` SDK adapter with `baseURL=https://api.vultrinference.com/v1`; list models and choose a default (wire it up when the key arrives) (15m)
+- [ ] 3.1 `server/llm/index.ts`: provider-agnostic interface, `LLM_PROVIDER` switch, shared prompts + zod schemas (20m)
+- [ ] 3.2 `server/llm/anthropic.ts`: `@anthropic-ai/sdk` adapter, default `claude-haiku-5-5` (15m)
+- [ ] 3.3 `server/llm/vultr.ts`: `openai` SDK adapter with `baseURL=https://api.vultrinference.com/v1`; list models and choose a default (wire it up when the key arrives) (15m)
 - [ ] 3.4 `parseCallout`: free-text SMS → `{crewId, shiftId, reason}` with zod validation (25m)
 - [ ] 3.5 `summarizePlan` + per-candidate rationale (25m)
 - [ ] 3.6 `composeOffer`: personalized offer text (15m)
@@ -71,12 +71,12 @@ Cut-line tasks (not counted in the totals above) add up to about 2.5h, which can
 - [ ] 4.10 ✂️ Auto-fill a draft week from the coverage template (60m) *(outside phase total)*
 
 ## 5. Call-out flow & outreach | 4.75h
-- [ ] 5.1 `lib/sms/{index,sim,twilio}.ts`: provider interface; sim stores messages in the DB (20m)
+- [ ] 5.1 `server/sms/{index,sim,twilio}.ts`: provider interface; sim stores messages in the DB (20m)
 - [ ] 5.2 `POST /api/sms/inbound` + "Mark sick" button → create CallOut (25m)
 - [ ] 5.3 Impact analysis + recovery plan (Plan A moves + Plan B candidates) persisted as RecoveryPlan (30m)
 - [ ] 5.4 Call-out page: plan summary, moves diff on the station board, ranked candidates with reasons, OT approval checkbox (50m)
 - [ ] 5.5 `POST /api/callouts/[id]/apply`: apply moves transactionally + notify moved crew (20m)
-- [ ] 5.6 `lib/outreach.ts` state machine: start → offer → timeout/decline → next → accept → commit (40m)
+- [ ] 5.6 `server/outreach.ts` state machine: start → offer → timeout/decline → next → accept → commit (40m)
 - [ ] 5.7 Transactional accept with double-accept protection ("already covered" reply) (15m)
 - [ ] 5.8 `worker/index.ts`: timeout polling loop (15m)
 - [ ] 5.9 Audit timeline + SSE live updates (`GET /api/callouts/[id]/events`) (30m)

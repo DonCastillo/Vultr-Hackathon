@@ -53,19 +53,31 @@ Once the project is scaffolded, replace this section with the actual commands (d
 
 ## Architecture rules that span files
 
-- **Rules decide, the LLM talks.** These are pure, unit-tested TypeScript with no LLM involvement:
-  - eligibility, overtime, youth labour limits, rest gap/clopen, cert expiry and coverage: `lib/rules/`
-  - jurisdiction presets for Ontario, BC and US federal: `lib/rules/presets.ts`
-  - the rebalance solver: `lib/solver/rebalance.ts`
-  - ranking: `lib/rank.ts`
+### Layout: frontend vs backend
 
-  The LLM (`lib/llm/`) does only four things: `parseCallout`, `summarizePlan`, `composeOffer` and `classifyReply`. `index.ts` holds the shared prompts and zod schemas; `anthropic.ts` and `vultr.ts` are thin transport adapters. New LLM features go in `index.ts`, never in one adapter only. Every call is zod-validated with a timeout and a keyword/template fallback, so the flow still works without inference.
+There is one Next.js app; the split is by folder:
+
+- **Frontend:** `app/` (pages) and `components/`. `lib/` holds UI-only helpers such as shadcn's `cn`.
+- **Backend:** `server/` (db, rules, solver, rank, llm, sms, outreach, audit).
+  - Every file there starts with `import "server-only"`, so the build fails if browser code imports it.
+  - `worker/` is a separate process that reuses `server/`.
+  - The database schema and seed live in `prisma/`.
+- **Route handlers and server actions** (`app/api/**` and `"use server"` functions) stay thin: validate input, then call `server/`. Client components (`"use client"`) never import `server/`.
+- **Pure logic stays framework-free:** `server/rules`, `server/solver` and `server/rank.ts`, so vitest can test them. `vitest.config.ts` aliases `server-only` to an empty module.
+
+- **Rules decide, the LLM talks.** These are pure, unit-tested TypeScript with no LLM involvement:
+  - eligibility, overtime, youth labour limits, rest gap/clopen, cert expiry and coverage: `server/rules/`
+  - jurisdiction presets for Ontario, BC and US federal: `server/rules/presets.ts`
+  - the rebalance solver: `server/solver/rebalance.ts`
+  - ranking: `server/rank.ts`
+
+  The LLM (`server/llm/`) does only four things: `parseCallout`, `summarizePlan`, `composeOffer` and `classifyReply`. `index.ts` holds the shared prompts and zod schemas; `anthropic.ts` and `vultr.ts` are thin transport adapters. New LLM features go in `index.ts`, never in one adapter only. Every call is zod-validated with a timeout and a keyword/template fallback, so the flow still works without inference.
 - **Manager approval gates every change.** Station moves and outreach start only after approval; overtime candidates need an explicit `otApproved`.
 - **One live offer per call-out.** This is enforced by a partial unique index on `Offer(callOutId) WHERE status IN ('SENT','CLARIFYING')`, created in a raw SQL migration because Prisma can't express it. Acceptance runs in a transaction with `SELECT … FOR UPDATE` on the CallOut, so only the first acceptor wins.
 - **State machines:**
   - CallOut: `OPEN → PLANNED → OUTREACH → COVERED | UNFILLED`
   - Offer: `PENDING → SENT → ACCEPTED | DECLINED | EXPIRED | CANCELLED`, with `CLARIFYING` as a loop back to `SENT`
-  - Logic lives in `lib/outreach.ts`. Both `web` (inbound replies) and `worker` (expiries) drive it.
+  - Logic lives in `server/outreach.ts`. Both `web` (inbound replies) and `worker` (expiries) drive it.
 - **Audit everything.** Every rule result, LLM input/output, message and decision is written to `AuditEvent` and streamed to the call-out page over SSE (`GET /api/callouts/[id]/events`).
 - **Time handling.** Datetimes are stored as UTC `TIMESTAMPTZ`. Times-of-day (`TIME`) are local store time in `Store.timezone` (default `America/Toronto`). Coverage is computed in 15-minute slots.
 - **Demo mode** (`RuleConfig.demoMode`) shortens the offer timeout from 600s to 120s for the demo video.

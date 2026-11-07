@@ -94,7 +94,7 @@ flowchart TB
         Events["GET /api/callouts/[id]/events (SSE)"]
     end
 
-    subgraph Domain["Domain core (lib/): pure TypeScript"]
+    subgraph Domain["Backend core (server/): pure TypeScript, guarded by server-only"]
         Rules["rules/<br/>eligibility · overtime · youth<br/>coverage · presets (ON/BC/US)"]
         Solver["solver/rebalance<br/>in-shift station moves"]
         Rank["rank<br/>call-in & extend candidates"]
@@ -241,12 +241,12 @@ erDiagram
 
 ## 7. LLM usage (provider-agnostic)
 
-All calls go through `lib/llm/index.ts`, which exposes the four functions below and delegates to one adapter selected by `LLM_PROVIDER`:
+All calls go through `server/llm/index.ts`, which exposes the four functions below and delegates to one adapter selected by `LLM_PROVIDER`:
 
 | Provider | Adapter | Client | Default model | Env vars |
 |---|---|---|---|---|
-| `vultr` | `lib/llm/vultr.ts` | `openai` SDK, `baseURL = https://api.vultrinference.com/v1` | from `GET /v1/models` | `VULTR_INFERENCE_API_KEY`, `VULTR_MODEL` |
-| `anthropic` | `lib/llm/anthropic.ts` | `@anthropic-ai/sdk` | `claude-haiku-5-5` | `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL` |
+| `vultr` | `server/llm/vultr.ts` | `openai` SDK, `baseURL = https://api.vultrinference.com/v1` | from `GET /v1/models` | `VULTR_INFERENCE_API_KEY`, `VULTR_MODEL` |
+| `anthropic` | `server/llm/anthropic.ts` | `@anthropic-ai/sdk` | `claude-haiku-5-5` | `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL` |
 
 Prompts and zod schemas are shared, so only the transport differs. The provider and model used are recorded in each `AuditEvent` payload and on `RecoveryPlan`. If the key for the configured provider is missing, the app runs on fallbacks only.
 
@@ -273,7 +273,9 @@ app/
   sim/                        phone simulator
   api/callouts/…              create, apply, events (SSE)
   api/sms/inbound/            Twilio webhook + sim
-lib/
+components/                   UI components (shadcn in components/ui)
+lib/utils.ts                  UI-only helpers (no backend code in lib/)
+server/                       BACKEND: every file starts with import "server-only"
   rules/  solver/  rank.ts  outreach.ts  llm/  sms/  audit.ts  db.ts
 worker/index.ts               timeout/escalation loop
 prisma/schema.prisma, seed.ts

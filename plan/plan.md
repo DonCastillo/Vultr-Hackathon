@@ -26,7 +26,7 @@ Dayparts: Overnight (11pm–5am), **Morning Rush (5:30–10am, peak)**, Midday (
 - **SMS abstraction:** `sim` (default) is an in-app crew phone simulator. `twilio` is used when env vars are set (trial account texting a verified phone for the live demo).
 - **Deploy:** one Vultr Cloud Compute VM (2 vCPU/4 GB, Ubuntu 24.04) running docker-compose (app, worker, postgres, Caddy). Caddy gets auto-TLS on `<ip>.sslip.io`.
 
-## Domain rules (deterministic engine in `lib/rules/`, unit-tested)
+## Domain rules (deterministic engine in `server/rules/`, unit-tested)
 - **Jurisdiction presets** (set once in Settings; simplified, with a "not legal advice" disclaimer):
   - Ontario: OT after **44h/week**, 11h daily rest, students under 16 limited on school days
   - British Columbia: OT after **8h/day and 40h/week**
@@ -64,10 +64,10 @@ Dayparts: Overnight (11pm–5am), **Morning Rush (5:30–10am, peak)**, Midday (
 `Store` (single row: name, jurisdiction, timezone, open hours), `Station` (name, priority, requiresCert), `Crew` (name, phone, birthdate, isStudent, wage, seniority, reliability), `CrewStation` (level), `Cert` (type, expiresAt), `Availability`, `TimeOff`, `SchoolDay` (date), `Shift` (crewId, start, end), `StationAssignment` (shiftId, stationId, start, end), `CoverageRule` (stationId, weekday, daypart, minCount), `CallOut`, `RecoveryPlan` (moves JSON, shortfall JSON, summary), `Offer` (callOutId, crewId, stationId, kind: callin/extend, rank, status, expiresAt), `Message`, `AuditEvent`, `RuleConfig`.
 
 ## Key files
-- `lib/rules/{eligibility,youth,overtime,coverage}.ts` + `lib/rules/presets.ts` (ON/BC/US): pure, with vitest tests
-- `lib/solver/rebalance.ts`, `lib/rank.ts`
-- `lib/llm/` (`index.ts` provider-agnostic interface, `anthropic.ts`, `vultr.ts`) + prompts (parseCallout, summarizePlan, composeOffer, classifyReply), zod-validated with keyword fallback
-- `lib/sms/{index,sim,twilio}.ts`, `lib/outreach.ts` (state machine), `worker/index.ts`
+- `server/rules/{eligibility,youth,overtime,coverage}.ts` + `server/rules/presets.ts` (ON/BC/US): pure, with vitest tests
+- `server/solver/rebalance.ts`, `server/rank.ts`
+- `server/llm/` (`index.ts` provider-agnostic interface, `anthropic.ts`, `vultr.ts`) + prompts (parseCallout, summarizePlan, composeOffer, classifyReply), zod-validated with keyword fallback
+- `server/sms/{index,sim,twilio}.ts`, `server/outreach.ts` (state machine), `worker/index.ts`
 - `app/(app)/schedule/week`, `app/(app)/schedule/day/[date]`, `app/(app)/callouts/[id]`, `app/(app)/crew`, `app/sim`, `app/settings`
 - API: `POST /api/callouts`, `POST /api/callouts/[id]/apply`, `POST /api/sms/inbound`, `GET /api/callouts/[id]/events` (SSE)
 - `prisma/seed.ts`: the standalone Maple & Mug store (Ontario), ~20 crew (students, trainees, an overnight baker, supervisors), a full week scheduled. Demo scenario: **the 5:30am drive-thru headset person texts in sick at 4:40am.**
@@ -77,7 +77,7 @@ Dayparts: Overnight (11pm–5am), **Morning Rush (5:30–10am, peak)**, Midday (
 0. **First action after approval, then stop for review:** save this plan to `plan/plan.md`, and write `plan/tasks.md`, a step-by-step checklist (`- [ ]`) grouped by the phases below. Each task gets an hour estimate, with a running total per phase and overall. Mark the cut-line tasks and the "you do" account prerequisites. No code is written until you review these.
 1. **(2h)** Scaffold Next.js + Prisma + compose; schema; seed
 2. **(4h)** Rules engine + presets + coverage + rebalance solver + ranking, with vitest
-3. **(2.25h)** `lib/llm/` with both providers (Claude first, Vultr when the key arrives), with fallbacks
+3. **(2.25h)** `server/llm/` with both providers (Claude first, Vultr when the key arrives), with fallbacks
 4. **(5h)** UI: week schedule (drag/drop + badges), day station board + coverage heatmap, crew roster
 5. **(4h)** Call-out flow: impact, recovery plan, apply moves, outreach, worker, phone simulator
 6. **(2h)** Deploy to Vultr VM; optional Twilio
