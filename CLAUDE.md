@@ -22,7 +22,7 @@ When the design changes, keep these four docs consistent with each other.
   - the files changed
   - how it was verified (commands run and their results)
   - anything left open
-- **Never commit without the user's explicit approval** of that subtask. After approval, make one commit per subtask, with a message starting with the subtask number (e.g. `1.1: scaffold Next.js 15 app`). Tick its checkbox in `plan/tasks.md` in the same commit.
+- **The user makes all git commits. Claude never runs `git commit`, `git push` or other history-changing git commands** (amend, rebase, reset, tag), even after approval. Once the user approves a subtask, tick its checkbox in `plan/tasks.md` and suggest a commit message that starts with the subtask number (e.g. `1.1: scaffold Next.js 15 app`). The user then commits it, tick included. Read-only git commands (`status`, `diff`, `log`) are fine. `permissions.deny` in `.claude/settings.json` blocks these commands for Claude.
 - If review feedback asks for changes, apply them to the same subtask and hand it over for review again.
 - On every user prompt, check `plan/tasks.md` against the actual state and tick any subtask that is done and approved, including the user's own `(you)` steps when the user reports them done. A `UserPromptSubmit` hook in `.claude/settings.json` sends this reminder.
 
