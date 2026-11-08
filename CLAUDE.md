@@ -10,9 +10,10 @@ This repo is the entry for the **Vultr: Agent Rush Hackathon**, Track 2 "Powerin
 - `plan/tasks.md`: checkbox task list with estimates. Tick boxes (`- [x]`) as tasks are completed.
 - `plan/architecture.md`: deployment, components, call-out sequence, offer state machine (Mermaid)
 - `plan/models.md`: every table, column, datatype, enum and index
+- `plan/enums.md`: what each enum value means and where it is used
 - `plan/vultr-hackathon-project-requirements.pdf`: the official event requirements
 
-When the design changes, keep these four docs consistent with each other.
+When the design changes, keep these docs consistent with each other.
 
 ## Workflow rule: one subtask at a time, reviewed before commit
 

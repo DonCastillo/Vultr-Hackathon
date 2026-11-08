@@ -13,6 +13,8 @@ These are the database tables for CrewShift (PostgreSQL 16 via Prisma). The rela
 
 ## Enums
 
+What each enum means and where it is used: [enums.md](enums.md).
+
 | Enum | Values |
 |---|---|
 | `Jurisdiction` | `ONTARIO`, `BRITISH_COLUMBIA`, `US_FEDERAL` |

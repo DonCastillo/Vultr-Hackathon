@@ -8,3 +8,5 @@ plan/*.pdf
 
 # docs are hand-formatted
 *.md
+server/generated/
+prisma/migrations/

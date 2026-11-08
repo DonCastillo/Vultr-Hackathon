@@ -1,0 +1,482 @@
+// CrewShift data model. The source of truth for columns and constraints is plan/models.md.
+//
+// Conventions:
+// - Datetimes are UTC TIMESTAMPTZ. Times-of-day (TIME) are local store time in Store.timezone.
+// - Constraints Prisma can't express (the partial unique index on live offers, CHECKs)
+//   live in the raw SQL part of the migrations.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../server/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Jurisdiction {
+  ONTARIO
+  BRITISH_COLUMBIA
+  US_FEDERAL
+}
+
+enum TrainingLevel {
+  TRAINEE
+  CERTIFIED
+  TRAINER
+}
+
+enum CertType {
+  FOOD_HANDLER
+  BAKER
+  SUPERVISOR
+  FIRST_AID
+}
+
+enum Daypart {
+  OVERNIGHT
+  MORNING_RUSH
+  MIDDAY
+  AFTERNOON
+  EVENING_CLOSE
+}
+
+enum TimeOffStatus {
+  REQUESTED
+  APPROVED
+  DENIED
+}
+
+enum ShiftStatus {
+  SCHEDULED
+  CALLED_OUT
+  COMPLETED
+  CANCELLED
+}
+
+enum CallOutSource {
+  SMS
+  MANAGER
+}
+
+enum CallOutStatus {
+  OPEN
+  PLANNED
+  OUTREACH
+  COVERED
+  UNFILLED
+  CANCELLED
+}
+
+enum OfferKind {
+  CALL_IN
+  EXTEND
+}
+
+enum OfferStatus {
+  PENDING
+  SENT
+  CLARIFYING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  CANCELLED
+}
+
+enum ReplyIntent {
+  ACCEPT
+  DECLINE
+  CONDITIONAL
+  QUESTION
+  UNKNOWN
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum SmsProvider {
+  SIM
+  TWILIO
+}
+
+// ---------------------------------------------------------------------------
+// Store and settings
+// ---------------------------------------------------------------------------
+
+/// The single standalone coffee shop.
+model Store {
+  id           String       @id @default(cuid())
+  name         String
+  address      String?
+  phone        String?
+  timezone     String       @default("America/Toronto")
+  jurisdiction Jurisdiction @default(ONTARIO)
+  openTime     DateTime     @db.Time(0)
+  closeTime    DateTime     @db.Time(0)
+  managerName  String
+  managerPhone String
+  createdAt    DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime     @updatedAt @db.Timestamptz(3)
+
+  ruleConfig    RuleConfig?
+  stations      Station[]
+  crew          Crew[]
+  schoolDays    SchoolDay[]
+  shifts        Shift[]
+  coverageRules CoverageRule[]
+}
+
+/// Rule settings, 1:1 with Store. Defaults come from the jurisdiction preset.
+model RuleConfig {
+  id                      String      @id @default(cuid())
+  storeId                 String      @unique
+  weeklyOtHours           Decimal     @db.Decimal(4, 1)
+  dailyOtHours            Decimal?    @db.Decimal(4, 1)
+  minRestHours            Decimal     @default(11) @db.Decimal(4, 1)
+  maxConsecutiveDays      Int         @default(6)
+  youthMaxSchoolDayHours  Decimal     @default(3) @db.Decimal(3, 1)
+  youthMaxSchoolWeekHours Decimal     @default(18) @db.Decimal(4, 1)
+  youthLatestEnd          DateTime    @default(dbgenerated("'19:00:00'::time without time zone")) @db.Time(0)
+  offerTimeoutSec         Int         @default(600)
+  demoMode                Boolean     @default(false)
+  smsProvider             SmsProvider @default(SIM)
+  createdAt               DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt               DateTime    @updatedAt @db.Timestamptz(3)
+
+  store Store @relation(fields: [storeId], references: [id])
+}
+
+/// A position in the store (Drive-Thru headset, Beverage, Oven, ...).
+model Station {
+  id                 String        @id @default(cuid())
+  storeId            String
+  name               String
+  shortCode          String        @db.VarChar(8)
+  color              String        @db.VarChar(7)
+  /// Lower = more critical (Drive-Thru = 1, Lobby = 9). Used by the rebalance solver.
+  priority           Int
+  requiredCert       CertType?
+  minLevelDuringRush TrainingLevel @default(TRAINEE)
+  youthRestricted    Boolean       @default(false)
+  isSupervisor       Boolean       @default(false)
+  active             Boolean       @default(true)
+  createdAt          DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime      @updatedAt @db.Timestamptz(3)
+
+  store         Store               @relation(fields: [storeId], references: [id])
+  crewStations  CrewStation[]
+  assignments   StationAssignment[]
+  coverageRules CoverageRule[]
+  offers        Offer[]
+
+  @@unique([storeId, name])
+}
+
+// ---------------------------------------------------------------------------
+// Crew
+// ---------------------------------------------------------------------------
+
+/// An employee of the store.
+model Crew {
+  id             String   @id @default(cuid())
+  storeId        String
+  firstName      String
+  lastName       String
+  /// E.164, e.g. +14165550123. Matches inbound SMS.
+  phone          String   @unique
+  birthdate      DateTime @db.Date
+  isStudent      Boolean  @default(false)
+  hourlyWage     Decimal  @db.Decimal(6, 2)
+  hireDate       DateTime @db.Date
+  /// 0-1, offer acceptance rate (recomputed).
+  reliability    Float    @default(0.8)
+  maxWeeklyHours Decimal? @db.Decimal(4, 1)
+  smsOptIn       Boolean  @default(true)
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
+
+  store           Store          @relation(fields: [storeId], references: [id])
+  stations        CrewStation[]
+  certs           Cert[]
+  availability    Availability[]
+  timeOff         TimeOff[]
+  shifts          Shift[]
+  callOuts        CallOut[]      @relation("CallOutCrew")
+  callOutsCovered CallOut[]      @relation("CallOutCoveredBy")
+  offers          Offer[]
+  messages        Message[]
+}
+
+/// Which stations a crew member is trained on.
+model CrewStation {
+  id        String        @id @default(cuid())
+  crewId    String
+  stationId String
+  level     TrainingLevel
+  trainedOn DateTime?     @db.Date
+  createdAt DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime      @updatedAt @db.Timestamptz(3)
+
+  crew    Crew    @relation(fields: [crewId], references: [id])
+  station Station @relation(fields: [stationId], references: [id])
+
+  @@unique([crewId, stationId])
+}
+
+/// A certification held by a crew member.
+model Cert {
+  id        String    @id @default(cuid())
+  crewId    String
+  type      CertType
+  issuedAt  DateTime  @db.Date
+  /// Null = never expires. Expired before the shift date = ineligible.
+  expiresAt DateTime? @db.Date
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+
+  crew Crew @relation(fields: [crewId], references: [id])
+
+  @@unique([crewId, type])
+}
+
+/// Recurring weekly windows when the crew member can work.
+model Availability {
+  id        String   @id @default(cuid())
+  crewId    String
+  /// 0-6, 0 = Sunday.
+  weekday   Int      @db.SmallInt
+  startTime DateTime @db.Time(0)
+  /// May be earlier than startTime for overnight windows.
+  endTime   DateTime @db.Time(0)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  crew Crew @relation(fields: [crewId], references: [id])
+}
+
+/// Dates that count as school days for youth rules.
+model SchoolDay {
+  id        String   @id @default(cuid())
+  storeId   String
+  date      DateTime @db.Date
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  store Store @relation(fields: [storeId], references: [id])
+
+  @@unique([storeId, date])
+}
+
+/// Vacation or unavailability requests. Only APPROVED blocks scheduling.
+model TimeOff {
+  id        String        @id @default(cuid())
+  crewId    String
+  start     DateTime      @db.Timestamptz(3)
+  end       DateTime      @db.Timestamptz(3)
+  reason    String?
+  status    TimeOffStatus @default(REQUESTED)
+  createdAt DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime      @updatedAt @db.Timestamptz(3)
+
+  crew Crew @relation(fields: [crewId], references: [id])
+}
+
+// ---------------------------------------------------------------------------
+// Schedule
+// ---------------------------------------------------------------------------
+
+/// A block of time a crew member is scheduled to work.
+model Shift {
+  id           String      @id @default(cuid())
+  storeId      String
+  crewId       String
+  start        DateTime    @db.Timestamptz(3)
+  end          DateTime    @db.Timestamptz(3)
+  /// Unpaid break, subtracted from hours.
+  breakMinutes Int         @default(0)
+  status       ShiftStatus @default(SCHEDULED)
+  notes        String?
+  createdAt    DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime    @updatedAt @db.Timestamptz(3)
+
+  store       Store               @relation(fields: [storeId], references: [id])
+  crew        Crew                @relation(fields: [crewId], references: [id])
+  assignments StationAssignment[]
+  callOuts    CallOut[]
+
+  @@index([crewId, start])
+  @@index([start])
+}
+
+/// Splits a shift into station blocks (e.g. 5:30-10 Drive-Thru, 10-1:30 Beverage).
+model StationAssignment {
+  id        String   @id @default(cuid())
+  shiftId   String
+  stationId String
+  start     DateTime @db.Timestamptz(3)
+  end       DateTime @db.Timestamptz(3)
+  /// manual | rebalance | callin | extend
+  source    String   @default("manual")
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  shift   Shift   @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  station Station @relation(fields: [stationId], references: [id])
+
+  @@index([stationId, start])
+}
+
+/// Minimum headcount per station per daypart.
+model CoverageRule {
+  id        String   @id @default(cuid())
+  storeId   String
+  stationId String
+  /// 0-6; null = every day.
+  weekday   Int?     @db.SmallInt
+  daypart   Daypart
+  startTime DateTime @db.Time(0)
+  endTime   DateTime @db.Time(0)
+  minCount  Int      @db.SmallInt
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  store   Store   @relation(fields: [storeId], references: [id])
+  station Station @relation(fields: [stationId], references: [id])
+
+  @@unique([stationId, weekday, daypart])
+}
+
+// ---------------------------------------------------------------------------
+// Call-outs and outreach
+// ---------------------------------------------------------------------------
+
+/// A sick call, or any absence that leaves a shift uncovered.
+model CallOut {
+  id              String        @id @default(cuid())
+  shiftId         String
+  crewId          String
+  source          CallOutSource
+  rawText         String?
+  reason          String?
+  parseConfidence Float?
+  status          CallOutStatus @default(OPEN)
+  approvedAt      DateTime?     @db.Timestamptz(3)
+  otApproved      Boolean       @default(false)
+  coveredAt       DateTime?     @db.Timestamptz(3)
+  coveredById     String?
+  createdAt       DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime      @updatedAt @db.Timestamptz(3)
+
+  shift       Shift         @relation(fields: [shiftId], references: [id])
+  crew        Crew          @relation("CallOutCrew", fields: [crewId], references: [id])
+  coveredBy   Crew?         @relation("CallOutCoveredBy", fields: [coveredById], references: [id])
+  plan        RecoveryPlan?
+  offers      Offer[]
+  messages    Message[]
+  auditEvents AuditEvent[]
+
+  @@index([status])
+}
+
+/// The agent's proposed fix for a call-out (1:1 with CallOut).
+model RecoveryPlan {
+  id                 String    @id @default(cuid())
+  callOutId          String    @unique
+  /// [{stationId, start, end, missing}] before moves
+  shortfall          Json
+  /// [{crewId, fromStationId, toStationId, start, end}] (Plan A)
+  moves              Json
+  /// Gaps left after moves, to fill with Plan B
+  remainingShortfall Json
+  /// Ranked [{crewId, kind, score, overtime, reasons[]}] (Plan B snapshot)
+  candidates         Json
+  summary            String
+  llmProvider        String?
+  llmModel           String?
+  appliedAt          DateTime? @db.Timestamptz(3)
+  createdAt          DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime  @updatedAt @db.Timestamptz(3)
+
+  callOut CallOut @relation(fields: [callOutId], references: [id])
+}
+
+/// A shift offer texted to one candidate. Offers go out one at a time per call-out
+/// (enforced by the partial unique index "one_live_offer" in the migration SQL).
+model Offer {
+  id          String       @id @default(cuid())
+  callOutId   String
+  crewId      String
+  stationId   String
+  kind        OfferKind
+  start       DateTime     @db.Timestamptz(3)
+  end         DateTime     @db.Timestamptz(3)
+  rank        Int          @db.SmallInt
+  score       Float
+  isOvertime  Boolean      @default(false)
+  rationale   String?
+  status      OfferStatus  @default(PENDING)
+  sentAt      DateTime?    @db.Timestamptz(3)
+  /// sentAt + offerTimeoutSec; polled by the worker.
+  expiresAt   DateTime?    @db.Timestamptz(3)
+  respondedAt DateTime?    @db.Timestamptz(3)
+  replyIntent ReplyIntent?
+  createdAt   DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime     @updatedAt @db.Timestamptz(3)
+
+  callOut  CallOut   @relation(fields: [callOutId], references: [id])
+  crew     Crew      @relation(fields: [crewId], references: [id])
+  station  Station   @relation(fields: [stationId], references: [id])
+  messages Message[]
+
+  @@unique([callOutId, crewId])
+  @@index([status, expiresAt])
+}
+
+/// Every SMS in or out, simulated or through Twilio.
+model Message {
+  id                String           @id @default(cuid())
+  crewId            String?
+  callOutId         String?
+  offerId           String?
+  direction         MessageDirection
+  fromPhone         String
+  toPhone           String
+  body              String
+  provider          SmsProvider
+  /// Twilio SID (dedupes webhooks).
+  providerMessageId String?          @unique
+  sentAt            DateTime         @default(now()) @db.Timestamptz(3)
+  createdAt         DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime         @updatedAt @db.Timestamptz(3)
+
+  crew    Crew?    @relation(fields: [crewId], references: [id])
+  callOut CallOut? @relation(fields: [callOutId], references: [id])
+  offer   Offer?   @relation(fields: [offerId], references: [id])
+
+  @@index([crewId, sentAt])
+}
+
+/// Append-only log of everything the agent did, shown as the call-out timeline.
+model AuditEvent {
+  id        String   @id @default(cuid())
+  callOutId String?
+  /// e.g. callout.parsed, plan.created, offer.sent, shift.covered
+  type      String
+  /// agent | manager | worker | crew:<id>
+  actor     String
+  payload   Json
+  at        DateTime @default(now()) @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  callOut CallOut? @relation(fields: [callOutId], references: [id])
+
+  @@index([callOutId, at])
+}
