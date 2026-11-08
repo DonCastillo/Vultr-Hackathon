@@ -59,16 +59,16 @@ Cut-line tasks (not counted in the totals above) add up to about 2.5h, which can
 - [x] 3.8 Keyword/regex fallbacks + timeout handling when the LLM is slow or returns bad JSON (15m)
 
 ## 4. Manager UI | 5.5h
-- [ ] 4.1 App shell: nav, mobile-friendly layout, Maple & Mug theming (30m)
-- [ ] 4.2 Crew roster page: stations, levels, certs, availability, student flag (40m)
-- [ ] 4.3 Week view: crew × day grid with station-colored shift bars (60m)
-- [ ] 4.4 Week view: drag to create/move/resize shifts (dnd-kit) + server actions (60m)
-- [ ] 4.5 Shift editor: split a shift into station blocks (30m)
-- [ ] 4.6 Live validation badges (OT, untrained, youth, clopen, unavailable, cert expired) (30m)
-- [ ] 4.7 **Day station board:** timeline by station + coverage heatmap vs. template (60m)
-- [ ] 4.8 Settings page: jurisdiction preset, OT threshold, rest hours, offer timeout, station priority (20m)
-- [ ] 4.9 ✂️ Labour % estimate per daypart (20m) *(outside phase total)*
-- [ ] 4.10 ✂️ Auto-fill a draft week from the coverage template (60m) *(outside phase total)*
+- [x] 4.1 App shell: nav, mobile-friendly layout, Maple & Mug theming (30m)
+- [x] 4.2 Crew roster page: stations, levels, certs, availability, student flag (40m)
+- [x] 4.3 Week view: crew × day grid with station-colored shift bars (60m)
+- [x] 4.4 Week view: drag to create/move/resize shifts (dnd-kit) + server actions (60m)
+- [x] 4.5 Shift editor: split a shift into station blocks (30m)
+- [x] 4.6 Live validation badges (OT, untrained, youth, clopen, unavailable, cert expired) (30m)
+- [x] 4.7 **Day station board:** timeline by station + coverage heatmap vs. template (60m)
+- [x] 4.8 Settings page: jurisdiction preset, OT threshold, rest hours, offer timeout, station priority (20m)
+- [x] 4.9 ✂️ Labour % estimate per daypart (20m) *(outside phase total)*
+- [x] 4.10 ✂️ Auto-fill a draft week from the coverage template (60m) *(outside phase total)*
 
 ## 5. Call-out flow & outreach | 4.75h
 - [ ] 5.1 `server/sms/{index,sim,twilio}.ts`: provider interface; sim stores messages in the DB (20m)
