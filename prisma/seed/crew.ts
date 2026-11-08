@@ -468,6 +468,28 @@ export const CREW: CrewSeed[] = [
   },
 ];
 
+/** Time off relative to `today` (store time) so it overlaps the seeded week. */
+export function planTimeOff(today: string, timezone: string) {
+  return [
+    {
+      // Approved: Diego is off for the next three days and must never be offered a shift.
+      crew: "Diego",
+      start: zoned(today, "00:00", timezone),
+      end: zoned(addDays(today, 3), "00:00", timezone),
+      reason: "Family trip",
+      status: "APPROVED" as const,
+    },
+    {
+      // Only requested: does not block scheduling.
+      crew: "Hannah",
+      start: zoned(addDays(today, 5), "00:00", timezone),
+      end: zoned(addDays(today, 6), "00:00", timezone),
+      reason: "Exam",
+      status: "REQUESTED" as const,
+    },
+  ];
+}
+
 export async function seedCrew(
   db: PrismaClient,
   storeId: string,
@@ -525,26 +547,12 @@ export async function seedCrew(
     windows += c.availability.reduce((n, w) => n + w.days.length, 0);
   }
 
-  // Time off, relative to today (store time) so it overlaps the seeded week.
-  const today = todayIn(timezone);
-  const timeOff = [
-    {
-      // Approved: Diego is off for the next three days and must never be offered a shift.
-      crewId: crewIds.Diego,
-      start: zoned(today, "00:00", timezone),
-      end: zoned(addDays(today, 3), "00:00", timezone),
-      reason: "Family trip",
-      status: "APPROVED" as const,
-    },
-    {
-      // Only requested: does not block scheduling.
-      crewId: crewIds.Hannah,
-      start: zoned(addDays(today, 5), "00:00", timezone),
-      end: zoned(addDays(today, 6), "00:00", timezone),
-      reason: "Exam",
-      status: "REQUESTED" as const,
-    },
-  ];
+  const timeOff = planTimeOff(todayIn(timezone), timezone).map(
+    ({ crew, ...t }) => ({
+      ...t,
+      crewId: crewIds[crew],
+    }),
+  );
   await db.timeOff.createMany({ data: timeOff });
 
   return {

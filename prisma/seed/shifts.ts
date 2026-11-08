@@ -207,16 +207,34 @@ const ageOn = (birthdate: string, ymd: string) => {
 /** Monday of the week containing ymd. */
 const weekStart = (ymd: string) => addDays(ymd, -((weekday(ymd) + 6) % 7));
 
-export async function seedShifts(
-  db: PrismaClient,
-  storeId: string,
+/** A planned shift in UTC instants, keyed by crew first name. */
+export interface PlannedShift {
+  crew: string;
+  start: Date;
+  end: Date;
+  breakMinutes: number;
+  blocks: { code: StationCode; start: Date; end: Date }[];
+  note: string | null;
+}
+
+export interface WeekPlan {
+  demoDay: string;
+  days: string[];
+  shifts: PlannedShift[];
+  gaps: string[];
+  pinWarnings: string[];
+}
+
+/**
+ * Plans the seeded week without touching the database, so tests can check the demo
+ * story against the rules engine. `today` is the store-local date the seed runs on.
+ */
+export function planWeek(
+  today: string,
   timezone: string,
-  stations: Record<StationCode, string>,
-  crewIds: Record<string, string>,
-  timeOff: { crewId: string; start: Date; end: Date; status: string }[],
-) {
+  timeOff: { crew: string; start: Date; end: Date; status: string }[],
+): WeekPlan {
   // --- Which days ----------------------------------------------------------------
-  const today = todayIn(timezone);
   let demoDay = addDays(today, 1);
   while (weekday(demoDay) === 0 || weekday(demoDay) === 6)
     demoDay = addDays(demoDay, 1);
@@ -241,9 +259,6 @@ export async function seedShifts(
     );
 
   const approvedOff = timeOff.filter((t) => t.status === "APPROVED");
-  const idToName = Object.fromEntries(
-    Object.entries(crewIds).map(([n, id]) => [id, n]),
-  );
 
   /** Why `name` can't work this shift, or null if they can. */
   function blocker(
@@ -307,9 +322,7 @@ export async function seedShifts(
     if (
       approvedOff.some(
         (t) =>
-          idToName[t.crewId] === name &&
-          t.start.getTime() < to &&
-          t.end.getTime() > from,
+          t.crew === name && t.start.getTime() < to && t.end.getTime() > from,
       )
     )
       return "approved time off";
@@ -476,44 +489,84 @@ export async function seedShifts(
     }
   }
 
-  // --- Write ---------------------------------------------------------------------
-  const now = Date.now();
+  return {
+    demoDay,
+    days,
+    gaps,
+    pinWarnings,
+    shifts: planned.map((s) => ({
+      crew: s.crew,
+      start: toUtc(s.dayIdx, s.start),
+      end: toUtc(s.dayIdx, s.end),
+      breakMinutes: s.breakMin,
+      blocks: s.blocks.map((b) => ({
+        code: b.code,
+        start: toUtc(s.dayIdx, b.start),
+        end: toUtc(s.dayIdx, b.end),
+      })),
+      note:
+        s.dayIdx === demoIdx && s.crew === "Kayla"
+          ? "Demo: calls in sick at 4:40am"
+          : null,
+    })),
+  };
+}
 
-  for (const s of planned) {
-    const start = toUtc(s.dayIdx, s.start);
-    const end = toUtc(s.dayIdx, s.end);
+export async function seedShifts(
+  db: PrismaClient,
+  storeId: string,
+  timezone: string,
+  stations: Record<StationCode, string>,
+  crewIds: Record<string, string>,
+  timeOff: { crewId: string; start: Date; end: Date; status: string }[],
+) {
+  const idToName = Object.fromEntries(
+    Object.entries(crewIds).map(([n, id]) => [id, n]),
+  );
+  const plan = planWeek(
+    todayIn(timezone),
+    timezone,
+    timeOff.map((t) => ({ ...t, crew: idToName[t.crewId] })),
+  );
+
+  const now = Date.now();
+  for (const s of plan.shifts) {
     await db.shift.create({
       data: {
         storeId,
         crewId: crewIds[s.crew],
-        start,
-        end,
-        breakMinutes: s.breakMin,
-        status: end.getTime() < now ? "COMPLETED" : "SCHEDULED",
-        notes:
-          s.dayIdx === demoIdx && s.crew === "Kayla"
-            ? "Demo: calls in sick at 4:40am"
-            : null,
+        start: s.start,
+        end: s.end,
+        breakMinutes: s.breakMinutes,
+        status: s.end.getTime() < now ? "COMPLETED" : "SCHEDULED",
+        notes: s.note,
         assignments: {
           create: s.blocks.map((b) => ({
             stationId: stations[b.code],
-            start: toUtc(s.dayIdx, b.start),
-            end: toUtc(s.dayIdx, b.end),
+            start: b.start,
+            end: b.end,
           })),
         },
       },
     });
   }
 
+  const hours = plan.shifts.reduce(
+    (h, s) =>
+      h +
+      (s.end.getTime() - s.start.getTime()) / 3_600_000 -
+      s.breakMinutes / 60,
+    0,
+  );
   return {
-    demoDay,
-    days: [days[0], days[days.length - 1]],
-    gaps,
-    pinWarnings,
+    demoDay: plan.demoDay,
+    days: [plan.days[0], plan.days[plan.days.length - 1]],
+    gaps: plan.gaps,
+    pinWarnings: plan.pinWarnings,
     counts: {
-      shifts: planned.length,
-      assignments: planned.reduce((n, s) => n + s.blocks.length, 0),
-      hours: Math.round(planned.reduce((h, s) => h + paidHours(s), 0)),
+      shifts: plan.shifts.length,
+      assignments: plan.shifts.reduce((n, s) => n + s.blocks.length, 0),
+      hours: Math.round(hours),
     },
   };
 }

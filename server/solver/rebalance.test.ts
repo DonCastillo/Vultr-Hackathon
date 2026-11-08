@@ -237,6 +237,27 @@ describe("rebalance: rules for moves", () => {
     });
   };
 
+  it("picks the lowest-priority donor station when several crew could cover", () => {
+    const pat = person("Pat", { lobby: C, ctr: C });
+    const quinn = person("Quinn", { sand: C, ctr: C }, { certs: [FOOD] });
+    const assignments = [
+      block("Dana", "supv", "10:00", "14:00"),
+      block("Gone", "ctr", "10:00", "14:00"),
+      block("Quinn", "sand", "10:00", "14:00"),
+      block("Pat", "lobby", "10:00", "14:00"),
+    ];
+    const rules = ["ctr", "sand", "lobby", "supv"].map((s) =>
+      rule(s, "10:00", "14:00", 1),
+    );
+    const r = run({
+      coverage: coverage(assignments, { rules }),
+      removedShiftIds: ["shift-Gone"],
+      crew: [SEED_CREW[0], pat, quinn],
+    });
+    expect(moves(r)).toEqual(["Pat lobby->ctr Mon 10:00-14:00"]);
+    expect(gaps(r.remainingShortfall)).toEqual(["lobby Mon 10:00-14:00 -1"]);
+  });
+
   it("moves a trained donor", () => {
     expect(moves(oneGap("ctr", person("Pat", { lobby: C, ctr: C })))).toEqual([
       "Pat lobby->ctr Mon 10:00-14:00",
