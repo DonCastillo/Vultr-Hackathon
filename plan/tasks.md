@@ -71,17 +71,17 @@ Cut-line tasks (not counted in the totals above) add up to about 2.5h, which can
 - [x] 4.10 ✂️ Auto-fill a draft week from the coverage template (60m) *(outside phase total)*
 
 ## 5. Call-out flow & outreach | 4.75h
-- [ ] 5.1 `server/sms/{index,sim,twilio}.ts`: provider interface; sim stores messages in the DB (20m)
-- [ ] 5.2 `POST /api/sms/inbound` + "Mark sick" button → create CallOut (25m)
-- [ ] 5.3 Impact analysis + recovery plan (Plan A moves + Plan B candidates) persisted as RecoveryPlan (30m)
-- [ ] 5.4 Call-out page: plan summary, moves diff on the station board, ranked candidates with reasons, OT approval checkbox (50m)
-- [ ] 5.5 `POST /api/callouts/[id]/apply`: apply moves transactionally + notify moved crew (20m)
-- [ ] 5.6 `server/outreach.ts` state machine: start → offer → timeout/decline → next → accept → commit (40m)
-- [ ] 5.7 Transactional accept with double-accept protection ("already covered" reply) (15m)
-- [ ] 5.8 `worker/index.ts`: timeout polling loop (15m)
-- [ ] 5.9 Audit timeline + SSE live updates (`GET /api/callouts/[id]/events`) (30m)
-- [ ] 5.10 `/sim` phone simulator: grid of crew phones, send/receive texts (35m)
-- [ ] 5.11 ✂️ Conditional replies ("can be there by 7") → partial cover (30m) *(outside phase total)*
+- [x] 5.1 `server/sms/{index,sim,twilio}.ts`: provider interface; sim stores messages in the DB (20m) *(done as `server/sms.ts`, sim only; Twilio cut)*
+- [x] 5.2 `POST /api/sms/inbound` + "Mark sick" button → create CallOut (25m) *(done as server action `simSendAction` + "Mark called out" in the shift editor)*
+- [x] 5.3 Impact analysis + recovery plan (Plan A moves + Plan B candidates) persisted as RecoveryPlan (30m)
+- [x] 5.4 Call-out page: plan summary, moves diff on the station board, ranked candidates with reasons, OT approval checkbox (50m) *(moves shown as a list on the call-out page, not as a diff on the board)*
+- [x] 5.5 `POST /api/callouts/[id]/apply`: apply moves transactionally + notify moved crew (20m) *(done as server action `approveOutreachAction`)*
+- [x] 5.6 `server/outreach.ts` state machine: start → offer → timeout/decline → next → accept → commit (40m)
+- [x] 5.7 Transactional accept with double-accept protection ("already covered" reply) (15m)
+- [x] 5.8 `worker/index.ts`: timeout polling loop (15m)
+- [x] 5.9 Audit timeline + SSE live updates (`GET /api/callouts/[id]/events`) (30m) *(SSE cut: pages poll every 2.5s instead)*
+- [x] 5.10 `/sim` phone simulator: grid of crew phones, send/receive texts (35m)
+- [ ] 5.11 ✂️ Conditional replies ("can be there by 7") → partial cover (30m) *(outside phase total)* *(cut; non-yes/no replies ask to clarify)*
 
 ## 6. Deploy to Vultr | 1.75h
 - [ ] 6.1 Production `Dockerfile` (Next.js standalone) + worker image (25m)
