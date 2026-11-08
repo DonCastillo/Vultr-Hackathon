@@ -119,8 +119,8 @@ export default async function BoardPage({
                   lane.map((b) => (
                     <div
                       key={`${b.shiftId}-${b.start}`}
-                      title={`${b.crewName} ${b.label}${b.calledOut ? " (called out)" : ""}`}
-                      className={`absolute flex items-center overflow-hidden rounded px-1.5 text-xs font-medium text-white shadow-sm ${b.calledOut ? "line-through opacity-40" : ""}`}
+                      title={`${b.crewName} ${b.label}${b.calledOut ? " (called out)" : ""}${b.inactive ? " (inactive: reassign)" : ""}`}
+                      className={`absolute flex items-center overflow-hidden rounded px-1.5 text-xs font-medium text-white shadow-sm ${b.calledOut ? "line-through opacity-40" : ""} ${b.inactive ? "outline-2 outline-offset-[-2px] outline-white outline-dashed" : ""}`}
                       style={{
                         left: px(b.start) + 1,
                         width: Math.max(px(b.end) - px(b.start) - 2, 4),
@@ -129,7 +129,10 @@ export default async function BoardPage({
                         background: st.color,
                       }}
                     >
-                      <span className="truncate">{b.crewName}</span>
+                      <span className="truncate">
+                        {b.crewName}
+                        {b.inactive && " (inactive)"}
+                      </span>
                     </div>
                   )),
                 )}

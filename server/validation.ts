@@ -28,7 +28,8 @@ export type BadgeKind =
   | "CERT"
   | "OVERLAP"
   | "DAYS"
-  | "PREF_HOURS";
+  | "PREF_HOURS"
+  | "INACTIVE";
 
 export interface Badge {
   kind: BadgeKind;
@@ -38,6 +39,7 @@ export interface Badge {
 }
 
 const BADGE_FOR_CODE: Record<string, { kind: BadgeKind; label: string }> = {
+  INACTIVE: { kind: "INACTIVE", label: "Inactive" },
   UNTRAINED: { kind: "UNTRAINED", label: "Untrained" },
   TRAINEE_AT_RUSH: { kind: "UNTRAINED", label: "Trainee alone" },
   CERT_MISSING: { kind: "CERT", label: "No cert" },

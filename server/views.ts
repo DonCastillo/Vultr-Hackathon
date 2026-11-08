@@ -81,6 +81,7 @@ export interface WeekView {
   days: { date: string; label: string }[];
   rows: {
     crewId: string;
+    active: boolean;
     name: string;
     age: number;
     isStudent: boolean;
@@ -104,7 +105,8 @@ export async function getWeekView(requested?: string): Promise<WeekView> {
 
   // Load a day either side so rest gaps and overnight shifts at the edges are checked.
   const [crew, { shifts, assignments }, schoolDays] = await Promise.all([
-    getCrew(),
+    // Inactive crew are loaded too, so shifts they still hold stay visible (and flagged).
+    getCrew({ includeInactive: true }),
     getShifts(dayRange(addDays(weekStart, -1), addDays(weekStart, 7), tz)),
     getSchoolDays(addDays(weekStart, -7), addDays(weekStart, 13)),
   ]);
@@ -143,22 +145,30 @@ export async function getWeekView(requested?: string): Promise<WeekView> {
       };
     });
 
-  const rows = crew.map((c) => {
-    const mine = cards.filter((k) => k.crewId === c.id);
-    return {
-      crewId: c.id,
-      name: `${c.firstName} ${c.lastName}`,
-      age: ageOn(c.birthdate, today),
-      isStudent: c.isStudent,
-      weekHours: round1(
-        mine
-          .filter((k) => days.includes(k.date) && k.status !== "CALLED_OUT")
-          .reduce((h, k) => h + k.hours, 0),
-      ),
-      maxWeeklyHours: c.maxWeeklyHours,
-      days: days.map((d) => mine.filter((k) => k.date === d)),
-    };
-  });
+  const rows = crew
+    // Inactive crew only get a row while they still hold shifts this week.
+    .filter(
+      (c) =>
+        c.active ||
+        cards.some((k) => k.crewId === c.id && days.includes(k.date)),
+    )
+    .map((c) => {
+      const mine = cards.filter((k) => k.crewId === c.id);
+      return {
+        crewId: c.id,
+        active: c.active,
+        name: `${c.firstName} ${c.lastName}`,
+        age: ageOn(c.birthdate, today),
+        isStudent: c.isStudent,
+        weekHours: round1(
+          mine
+            .filter((k) => days.includes(k.date) && k.status !== "CALLED_OUT")
+            .reduce((h, k) => h + k.hours, 0),
+        ),
+        maxWeeklyHours: c.maxWeeklyHours,
+        days: days.map((d) => mine.filter((k) => k.date === d)),
+      };
+    });
 
   return {
     storeName: ctx.storeName,
@@ -215,6 +225,7 @@ export interface BoardView {
       end: number;
       label: string;
       calledOut: boolean;
+      inactive: boolean;
     }[][];
     slots: { start: number; required: number; scheduled: number }[];
   }[];
@@ -244,7 +255,7 @@ export async function getBoardView(requested?: string): Promise<BoardView> {
   const date =
     requested && /^\d{4}-\d{2}-\d{2}$/.test(requested) ? requested : today;
   const [crew, { shifts, assignments }] = await Promise.all([
-    getCrew(),
+    getCrew({ includeInactive: true }),
     getShifts(dayRange(addDays(date, -1), addDays(date, 1), tz)),
   ]);
   const crewById = new Map(crew.map((c) => [c.id, c]));
@@ -289,6 +300,7 @@ export async function getBoardView(requested?: string): Promise<BoardView> {
           const c = crewById.get(a.crewId);
           return {
             crewName: c ? c.firstName : "?",
+            inactive: c ? !c.active : false,
             shiftId: a.shiftId,
             start: Math.max(windowStart, minutesFrom(a.start)),
             end: Math.min(windowEnd, minutesFrom(a.end)),

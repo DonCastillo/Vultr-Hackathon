@@ -82,3 +82,29 @@ describe("validateShifts", () => {
     expect(kinds(b, x.shift.id)).toContain("CERT");
   });
 });
+
+describe("validateShifts: inactive crew", () => {
+  it("flags every shift an inactive crew member still holds", () => {
+    const crew = s.crew.map((c) =>
+      c.id === "Dana" ? { ...c, active: false } : c,
+    );
+    const badges = validateShifts({
+      ctx,
+      crew,
+      shifts: s.shifts,
+      assignments: s.assignments,
+      schoolDays: s.schoolDays,
+    });
+    const danas = s.shifts.filter((sh) => sh.crewId === "Dana");
+    expect(danas.length).toBeGreaterThan(0);
+    for (const sh of danas) {
+      expect(badges.get(sh.id)).toEqual([
+        expect.objectContaining({
+          kind: "INACTIVE",
+          label: "Inactive",
+          severity: "block",
+        }),
+      ]);
+    }
+  });
+});

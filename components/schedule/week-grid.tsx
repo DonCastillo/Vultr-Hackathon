@@ -92,6 +92,14 @@ export function WeekGrid({ view }: { view: WeekView }) {
                     className="sticky left-0 z-10 bg-card px-2 py-1.5 text-left align-top font-normal"
                   >
                     <div className="truncate font-medium">{row.name}</div>
+                    {!row.active && (
+                      <span
+                        className="rounded bg-zinc-200 px-1 text-[10px] font-semibold text-zinc-700"
+                        title="No longer active: reassign these shifts"
+                      >
+                        Inactive · reassign
+                      </span>
+                    )}
                     <div className="text-xs text-muted-foreground">
                       <span
                         className={
@@ -134,7 +142,10 @@ export function WeekGrid({ view }: { view: WeekView }) {
       {editing && (
         <ShiftEditor
           target={editing}
-          crew={view.rows.map((r) => ({ id: r.crewId, name: r.name }))}
+          crew={view.rows.map((r) => ({
+            id: r.crewId,
+            name: r.active ? r.name : `${r.name} (inactive)`,
+          }))}
           stations={view.stations}
           onClose={() => setEditing(null)}
         />

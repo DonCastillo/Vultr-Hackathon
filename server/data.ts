@@ -111,9 +111,12 @@ export async function getStoreContext(): Promise<StoreContext> {
 
 export type CrewWithWage = CrewInfo & { hourlyWage: number; phone: string };
 
-export async function getCrew(): Promise<CrewWithWage[]> {
+/** Active crew; `includeInactive` also returns inactive crew (for showing their leftover shifts). */
+export async function getCrew(
+  options: { includeInactive?: boolean } = {},
+): Promise<CrewWithWage[]> {
   const rows = await db.crew.findMany({
-    where: { active: true },
+    where: options.includeInactive ? {} : { active: true },
     orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
     include: { stations: true, certs: true, availability: true, timeOff: true },
   });

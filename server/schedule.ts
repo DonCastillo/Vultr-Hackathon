@@ -81,6 +81,19 @@ async function audit(
   await tx.auditEvent.create({ data: { type, actor: "manager", payload } });
 }
 
+/** Shifts can only go to active crew; inactive crew's leftover shifts must be reassigned. */
+async function assertActive(tx: Prisma.TransactionClient, crewId: string) {
+  const crew = await tx.crew.findUnique({
+    where: { id: crewId },
+    select: { active: true, firstName: true },
+  });
+  if (!crew) throw new ScheduleError("That crew member doesn't exist.");
+  if (!crew.active)
+    throw new ScheduleError(
+      `${crew.firstName} is inactive: pick someone else for this shift.`,
+    );
+}
+
 async function storeOf(tx: Prisma.TransactionClient) {
   return tx.store.findFirstOrThrow({ select: { id: true, timezone: true } });
 }
@@ -88,6 +101,7 @@ async function storeOf(tx: Prisma.TransactionClient) {
 export async function createShift(input: ShiftInput) {
   return db.$transaction(async (tx) => {
     const store = await storeOf(tx);
+    await assertActive(tx, input.crewId);
     const t = resolveTimes(input, store.timezone);
     const shift = await tx.shift.create({
       data: {
@@ -110,6 +124,7 @@ export async function createShift(input: ShiftInput) {
 export async function updateShift(shiftId: string, input: ShiftInput) {
   return db.$transaction(async (tx) => {
     const store = await storeOf(tx);
+    await assertActive(tx, input.crewId);
     const t = resolveTimes(input, store.timezone);
     await tx.stationAssignment.deleteMany({ where: { shiftId } });
     await tx.shift.update({
@@ -130,6 +145,7 @@ export async function updateShift(shiftId: string, input: ShiftInput) {
 export async function moveShift(shiftId: string, crewId: string, date: string) {
   return db.$transaction(async (tx) => {
     const store = await storeOf(tx);
+    await assertActive(tx, crewId);
     const shift = await tx.shift.findUniqueOrThrow({
       where: { id: shiftId },
       include: { assignments: true },
