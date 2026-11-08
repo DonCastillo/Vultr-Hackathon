@@ -23,7 +23,7 @@ Cut-line tasks (not counted in the totals above) add up to about 2.5h, which can
 
 ## P. Prerequisites (you) | 0.75h
 - [x] P.1 **(you)** Create a Vultr account with an email never used on Vultr, and verify it (10m)
-- [ ] P.2 **(you)** Billing → Promotions → apply the hackathon gift code; confirm $200.00 credit (5m) ⏳ **Blocked (Nov 7):** the event ran out of codes; organizers say they will replenish them. Fallback: add a payment method to start, since VM costs are hourly and small.
+- [x] P.2 **(you)** Billing → Promotions → apply the hackathon gift code; confirm $200.00 credit (5m)
 - [ ] P.3 **(you)** Enable Serverless Inference, create an API key, and put it in `.env` as `VULTR_INFERENCE_API_KEY` (10m) ⏳ blocked on credits
 - [x] P.4 **(you)** Create an Anthropic API key and put it in `.env` as `ANTHROPIC_API_KEY` with `LLM_PROVIDER=anthropic` (10m)
 - [ ] P.5 **(you)** Add an SSH key in the Vultr console (5m)
@@ -84,7 +84,7 @@ Cut-line tasks (not counted in the totals above) add up to about 2.5h, which can
 - [ ] 5.11 ✂️ Conditional replies ("can be there by 7") → partial cover (30m) *(outside phase total)* *(cut; non-yes/no replies ask to clarify)*
 
 ## 6. Deploy to Vultr | 1.75h
-- [ ] 6.1 Production `Dockerfile` (Next.js standalone) + worker image (25m)
+- [x] 6.1 Production `Dockerfile` (Next.js standalone) + worker image (25m)
 - [ ] 6.2 Compose prod profile: app, worker, postgres, Caddy; `Caddyfile` for `<ip>.sslip.io` auto-TLS (20m)
 - [ ] 6.3 VM setup: Docker install, firewall (22/80/443), clone repo, `.env`, `compose up`, migrate + seed (40m)
 - [ ] 6.4 Smoke-test the full demo flow on the public URL (20m)
