@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
 import {
@@ -49,7 +49,10 @@ const callout = {
   ],
 };
 
-afterEach(() => setTransport(undefined));
+afterEach(() => {
+  setTransport(undefined);
+  vi.unstubAllEnvs();
+});
 
 describe("resolveProvider", () => {
   it("defaults to anthropic and accepts vultr, case-insensitively", () => {
@@ -72,7 +75,8 @@ describe("getTransport / setTransport", () => {
     expect(await getTransport()).toBe(t);
   });
 
-  it("reports a missing adapter as NO_PROVIDER instead of throwing", async () => {
+  it("reports a bad LLM_PROVIDER as NO_PROVIDER instead of throwing", async () => {
+    vi.stubEnv("LLM_PROVIDER", "openai");
     const r = await runTask(COMPOSE_OFFER, {
       firstName: "Ben",
       storeName: "Maple & Mug",
@@ -83,6 +87,7 @@ describe("getTransport / setTransport", () => {
       replyMinutes: 10,
     });
     expect(r).toMatchObject({ ok: false, error: "NO_PROVIDER" });
+    if (!r.ok) expect(r.message).toContain("LLM_PROVIDER must be");
   });
 });
 

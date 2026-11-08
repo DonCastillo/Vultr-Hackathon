@@ -54,9 +54,8 @@ export interface LlmTransport {
 }
 
 const loaders: Record<LlmProvider, () => Promise<LlmTransport>> = {
-  anthropic: async () => {
-    throw new Error("The Anthropic adapter is added in task 3.2.");
-  },
+  anthropic: async () =>
+    (await import("./anthropic")).createAnthropicTransport(),
   vultr: async () => {
     throw new Error("The Vultr adapter is added in task 3.3.");
   },
