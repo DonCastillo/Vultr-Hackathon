@@ -26,8 +26,8 @@ Cut-line tasks (not counted in the totals above) add up to about 2.5h, which can
 - [x] P.2 **(you)** Billing → Promotions → apply the hackathon gift code; confirm $200.00 credit (5m)
 - [ ] P.3 **(you)** Enable Serverless Inference, create an API key, and put it in `.env` as `VULTR_INFERENCE_API_KEY` (10m) ⏳ blocked on credits
 - [x] P.4 **(you)** Create an Anthropic API key and put it in `.env` as `ANTHROPIC_API_KEY` with `LLM_PROVIDER=anthropic` (10m)
-- [ ] P.5 **(you)** Add an SSH key in the Vultr console (5m)
-- [ ] P.6 **(you)** Deploy a Cloud Compute VM: Ubuntu 24.04, 2 vCPU / 4 GB (can wait until Phase 6) (10m)
+- [x] P.5 **(you)** Add an SSH key in the Vultr console (5m)
+- [x] P.6 **(you)** Deploy a Cloud Compute VM: Ubuntu 24.04, 2 vCPU / 4 GB (can wait until Phase 6) (10m)
 - [ ] P.7 **(you)** ✂️ Twilio trial account, verify your phone, buy a number (15m)
 
 ## 1. Scaffold & data | 2.5h
