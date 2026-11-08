@@ -40,6 +40,7 @@ The manager schedules crew by day, time and **station** (Drive-Thru headset/wind
 
 ## Stack (planned)
 
+- Node 24.22+ LTS (`.nvmrc`; Docker images `node:24-alpine`). Older Node builds bundle tz data from before Alberta moved to permanent UTC-6 on 2026-11-01 and get store times wrong by an hour; `prisma/seed.ts` refuses to run when Node and Postgres disagree.
 - Next.js 15 (App Router, TypeScript), Tailwind + shadcn/ui, dnd-kit
 - Postgres 16 + Prisma
 - Separate worker process (`worker/index.ts`, run with `tsx`) that polls every 5s for expired offers
