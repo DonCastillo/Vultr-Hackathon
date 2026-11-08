@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { createContext, useContext, useState, useTransition } from "react";
 
 import { createCrewAction, updateCrewAction } from "@/app/actions";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,11 @@ const CERTS = [
   { value: "FIRST_AID", label: "First aid" },
 ] as const;
 
-const input = "w-full rounded-md border bg-background px-2 py-1.5 text-sm";
+/** True while the editor is in read-only view mode. */
+const ViewingContext = createContext(false);
+
+const input =
+  "w-full rounded-md border bg-background px-2 py-1.5 text-sm disabled:cursor-default disabled:bg-muted/40 disabled:text-foreground disabled:opacity-100";
 
 export const EMPTY_CREW: CrewEditInput = {
   firstName: "",
@@ -56,12 +60,16 @@ export function CrewEditor({
   initial,
   stations,
   onClose,
+  mode = "edit",
 }: {
   crewId: string | null;
   initial: CrewEditInput;
   stations: Station[];
   onClose: () => void;
+  /** "view" opens read-only, with an Edit button to switch to editing. */
+  mode?: "view" | "edit";
 }) {
+  const [viewing, setViewing] = useState(mode === "view" && crewId !== null);
   const [form, setForm] = useState<CrewEditInput>(initial);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -86,393 +94,414 @@ export function CrewEditor({
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>
-            {crewId
-              ? `Edit ${initial.firstName} ${initial.lastName}`
-              : "Add crew member"}
+            {viewing
+              ? `${initial.firstName} ${initial.lastName}`
+              : crewId
+                ? `Edit ${initial.firstName} ${initial.lastName}`
+                : "Add crew member"}
           </DialogTitle>
           <DialogDescription>
-            The rules engine reads all of this: changes show up on the schedule
-            badges and the station board right away.
+            {viewing
+              ? "Read-only. Choose Edit to make changes."
+              : "The rules engine reads all of this: changes show up on the schedule badges and the station board right away."}
           </DialogDescription>
         </DialogHeader>
 
-        <Section title="Profile">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <Field label="First name">
-              <input
-                className={input}
-                value={form.firstName}
-                onChange={(e) => set("firstName", e.target.value)}
-              />
-            </Field>
-            <Field label="Last name">
-              <input
-                className={input}
-                value={form.lastName}
-                onChange={(e) => set("lastName", e.target.value)}
-              />
-            </Field>
-            <Field label="Phone (E.164)">
-              <input
-                className={input}
-                value={form.phone}
-                onChange={(e) => set("phone", e.target.value.trim())}
-              />
-            </Field>
-            <Field label="Birthdate">
-              <input
-                type="date"
-                className={input}
-                value={form.birthdate}
-                onChange={(e) => set("birthdate", e.target.value)}
-              />
-            </Field>
-            <Field label="Hire date">
-              <input
-                type="date"
-                className={input}
-                value={form.hireDate}
-                onChange={(e) => set("hireDate", e.target.value)}
-              />
-            </Field>
-            <Field label="Hourly wage ($)">
-              <input
-                type="number"
-                min={0}
-                step={0.25}
-                className={input}
-                value={form.hourlyWage}
-                onChange={(e) => set("hourlyWage", Number(e.target.value))}
-              />
-            </Field>
-            <Field label="Max hours/week (empty = none)">
-              <input
-                type="number"
-                min={1}
-                className={input}
-                value={form.maxWeeklyHours ?? ""}
-                onChange={(e) =>
-                  set(
-                    "maxWeeklyHours",
-                    e.target.value === "" ? null : Number(e.target.value),
-                  )
-                }
-              />
-            </Field>
-          </div>
-          <div className="mt-3 flex flex-wrap gap-4 text-sm">
-            <Check
-              label="Student (school-day youth limits)"
-              checked={form.isStudent}
-              onChange={(v) => set("isStudent", v)}
-            />
-            <Check
-              label="Receives shift texts"
-              checked={form.smsOptIn}
-              onChange={(v) => set("smsOptIn", v)}
-            />
-            <Check
-              label="Active"
-              checked={form.active}
-              onChange={(v) => set("active", v)}
-            />
-          </div>
-        </Section>
-
-        <Section title="Station training">
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-            {stations.map((s) => (
-              <label key={s.id} className="flex items-center gap-2 text-sm">
-                <span
-                  className="size-2.5 shrink-0 rounded-full"
-                  style={{ background: s.color }}
+        <ViewingContext.Provider value={viewing}>
+          {/* A disabled fieldset makes every input read-only in view mode. */}
+          <fieldset
+            disabled={viewing}
+            className="m-0 grid min-w-0 gap-4 border-0 p-0"
+          >
+            <Section title="Profile">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <Field label="First name">
+                  <input
+                    className={input}
+                    value={form.firstName}
+                    onChange={(e) => set("firstName", e.target.value)}
+                  />
+                </Field>
+                <Field label="Last name">
+                  <input
+                    className={input}
+                    value={form.lastName}
+                    onChange={(e) => set("lastName", e.target.value)}
+                  />
+                </Field>
+                <Field label="Phone (E.164)">
+                  <input
+                    className={input}
+                    value={form.phone}
+                    onChange={(e) => set("phone", e.target.value.trim())}
+                  />
+                </Field>
+                <Field label="Birthdate">
+                  <input
+                    type="date"
+                    className={input}
+                    value={form.birthdate}
+                    onChange={(e) => set("birthdate", e.target.value)}
+                  />
+                </Field>
+                <Field label="Hire date">
+                  <input
+                    type="date"
+                    className={input}
+                    value={form.hireDate}
+                    onChange={(e) => set("hireDate", e.target.value)}
+                  />
+                </Field>
+                <Field label="Hourly wage ($)">
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.25}
+                    className={input}
+                    value={form.hourlyWage}
+                    onChange={(e) => set("hourlyWage", Number(e.target.value))}
+                  />
+                </Field>
+                <Field label="Max hours/week (empty = none)">
+                  <input
+                    type="number"
+                    min={1}
+                    className={input}
+                    value={form.maxWeeklyHours ?? ""}
+                    onChange={(e) =>
+                      set(
+                        "maxWeeklyHours",
+                        e.target.value === "" ? null : Number(e.target.value),
+                      )
+                    }
+                  />
+                </Field>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-4 text-sm">
+                <Check
+                  label="Student (school-day youth limits)"
+                  checked={form.isStudent}
+                  onChange={(v) => set("isStudent", v)}
                 />
-                <span className="w-14 shrink-0 font-medium" title={s.name}>
-                  {s.shortCode}
-                </span>
-                <select
-                  aria-label={`Training on ${s.name}`}
-                  className={input}
-                  value={form.stations[s.id] ?? ""}
-                  onChange={(e) => {
-                    const next = { ...form.stations };
-                    if (e.target.value === "") delete next[s.id];
-                    else
-                      next[s.id] = e.target
-                        .value as CrewEditInput["stations"][string];
-                    set("stations", next);
-                  }}
+                <Check
+                  label="Receives shift texts"
+                  checked={form.smsOptIn}
+                  onChange={(v) => set("smsOptIn", v)}
+                />
+                <Check
+                  label="Active"
+                  checked={form.active}
+                  onChange={(v) => set("active", v)}
+                />
+              </div>
+            </Section>
+
+            <Section title="Station training">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                {stations.map((s) => (
+                  <label key={s.id} className="flex items-center gap-2 text-sm">
+                    <span
+                      className="size-2.5 shrink-0 rounded-full"
+                      style={{ background: s.color }}
+                    />
+                    <span className="w-14 shrink-0 font-medium" title={s.name}>
+                      {s.shortCode}
+                    </span>
+                    <select
+                      aria-label={`Training on ${s.name}`}
+                      className={input}
+                      value={form.stations[s.id] ?? ""}
+                      onChange={(e) => {
+                        const next = { ...form.stations };
+                        if (e.target.value === "") delete next[s.id];
+                        else
+                          next[s.id] = e.target
+                            .value as CrewEditInput["stations"][string];
+                        set("stations", next);
+                      }}
+                    >
+                      {LEVELS.map((l) => (
+                        <option key={l.value} value={l.value}>
+                          {l.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ))}
+              </div>
+            </Section>
+
+            <Section
+              title="Certs"
+              onAdd={() =>
+                set("certs", [
+                  ...form.certs,
+                  {
+                    type:
+                      CERTS.find(
+                        (c) => !form.certs.some((x) => x.type === c.value),
+                      )?.value ?? "FIRST_AID",
+                    issuedAt: new Date().toISOString().slice(0, 10),
+                    expiresAt: null,
+                  },
+                ])
+              }
+            >
+              {form.certs.length === 0 && <Empty>No certs.</Empty>}
+              {form.certs.map((c, i) => (
+                <Row
+                  key={i}
+                  onRemove={() =>
+                    set(
+                      "certs",
+                      form.certs.filter((_, n) => n !== i),
+                    )
+                  }
+                  label={`cert ${i + 1}`}
                 >
-                  {LEVELS.map((l) => (
-                    <option key={l.value} value={l.value}>
-                      {l.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ))}
-          </div>
-        </Section>
+                  <select
+                    aria-label={`Cert ${i + 1} type`}
+                    className={input}
+                    value={c.type}
+                    onChange={(e) =>
+                      set(
+                        "certs",
+                        form.certs.map((x, n) =>
+                          n === i
+                            ? { ...x, type: e.target.value as typeof c.type }
+                            : x,
+                        ),
+                      )
+                    }
+                  >
+                    {CERTS.map((t) => (
+                      <option key={t.value} value={t.value}>
+                        {t.label}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    aria-label={`Cert ${i + 1} issued`}
+                    type="date"
+                    className={input}
+                    value={c.issuedAt}
+                    onChange={(e) =>
+                      set(
+                        "certs",
+                        form.certs.map((x, n) =>
+                          n === i ? { ...x, issuedAt: e.target.value } : x,
+                        ),
+                      )
+                    }
+                  />
+                  <input
+                    aria-label={`Cert ${i + 1} expires (empty = never)`}
+                    type="date"
+                    className={input}
+                    value={c.expiresAt ?? ""}
+                    onChange={(e) =>
+                      set(
+                        "certs",
+                        form.certs.map((x, n) =>
+                          n === i
+                            ? { ...x, expiresAt: e.target.value || null }
+                            : x,
+                        ),
+                      )
+                    }
+                  />
+                </Row>
+              ))}
+              {form.certs.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Type · issued · expires (empty = never)
+                </p>
+              )}
+            </Section>
 
-        <Section
-          title="Certs"
-          onAdd={() =>
-            set("certs", [
-              ...form.certs,
-              {
-                type:
-                  CERTS.find((c) => !form.certs.some((x) => x.type === c.value))
-                    ?.value ?? "FIRST_AID",
-                issuedAt: new Date().toISOString().slice(0, 10),
-                expiresAt: null,
-              },
-            ])
-          }
-        >
-          {form.certs.length === 0 && <Empty>No certs.</Empty>}
-          {form.certs.map((c, i) => (
-            <Row
-              key={i}
-              onRemove={() =>
-                set(
-                  "certs",
-                  form.certs.filter((_, n) => n !== i),
-                )
+            <Section
+              title="Weekly availability"
+              onAdd={() =>
+                set("availability", [
+                  ...form.availability,
+                  { weekday: 1, start: "05:00", end: "14:00" },
+                ])
               }
-              label={`cert ${i + 1}`}
             >
-              <select
-                aria-label={`Cert ${i + 1} type`}
-                className={input}
-                value={c.type}
-                onChange={(e) =>
-                  set(
-                    "certs",
-                    form.certs.map((x, n) =>
-                      n === i
-                        ? { ...x, type: e.target.value as typeof c.type }
-                        : x,
-                    ),
-                  )
-                }
-              >
-                {CERTS.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-              <input
-                aria-label={`Cert ${i + 1} issued`}
-                type="date"
-                className={input}
-                value={c.issuedAt}
-                onChange={(e) =>
-                  set(
-                    "certs",
-                    form.certs.map((x, n) =>
-                      n === i ? { ...x, issuedAt: e.target.value } : x,
-                    ),
-                  )
-                }
-              />
-              <input
-                aria-label={`Cert ${i + 1} expires (empty = never)`}
-                type="date"
-                className={input}
-                value={c.expiresAt ?? ""}
-                onChange={(e) =>
-                  set(
-                    "certs",
-                    form.certs.map((x, n) =>
-                      n === i ? { ...x, expiresAt: e.target.value || null } : x,
-                    ),
-                  )
-                }
-              />
-            </Row>
-          ))}
-          {form.certs.length > 0 && (
-            <p className="text-xs text-muted-foreground">
-              Type · issued · expires (empty = never)
-            </p>
-          )}
-        </Section>
+              {form.availability.length === 0 && (
+                <Empty>Not available at any time.</Empty>
+              )}
+              {form.availability.map((a, i) => (
+                <Row
+                  key={i}
+                  onRemove={() =>
+                    set(
+                      "availability",
+                      form.availability.filter((_, n) => n !== i),
+                    )
+                  }
+                  label={`availability ${i + 1}`}
+                >
+                  <select
+                    aria-label={`Availability ${i + 1} day`}
+                    className={input}
+                    value={a.weekday}
+                    onChange={(e) =>
+                      set(
+                        "availability",
+                        form.availability.map((x, n) =>
+                          n === i
+                            ? { ...x, weekday: Number(e.target.value) }
+                            : x,
+                        ),
+                      )
+                    }
+                  >
+                    {WEEKDAYS.map((d, n) => (
+                      <option key={d} value={n}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    aria-label={`Availability ${i + 1} from`}
+                    type="time"
+                    step={900}
+                    className={input}
+                    value={a.start}
+                    onChange={(e) =>
+                      set(
+                        "availability",
+                        form.availability.map((x, n) =>
+                          n === i ? { ...x, start: e.target.value } : x,
+                        ),
+                      )
+                    }
+                  />
+                  <input
+                    aria-label={`Availability ${i + 1} to`}
+                    type="time"
+                    step={900}
+                    className={input}
+                    value={a.end}
+                    onChange={(e) =>
+                      set(
+                        "availability",
+                        form.availability.map((x, n) =>
+                          n === i ? { ...x, end: e.target.value } : x,
+                        ),
+                      )
+                    }
+                  />
+                </Row>
+              ))}
+              <p className="text-xs text-muted-foreground">
+                An end before the start runs past midnight (e.g. 22:00 → 09:00).
+              </p>
+            </Section>
 
-        <Section
-          title="Weekly availability"
-          onAdd={() =>
-            set("availability", [
-              ...form.availability,
-              { weekday: 1, start: "05:00", end: "14:00" },
-            ])
-          }
-        >
-          {form.availability.length === 0 && (
-            <Empty>Not available at any time.</Empty>
-          )}
-          {form.availability.map((a, i) => (
-            <Row
-              key={i}
-              onRemove={() =>
-                set(
-                  "availability",
-                  form.availability.filter((_, n) => n !== i),
-                )
-              }
-              label={`availability ${i + 1}`}
+            <Section
+              title="Time off"
+              onAdd={() => {
+                const today = new Date().toISOString().slice(0, 10);
+                set("timeOff", [
+                  ...form.timeOff,
+                  {
+                    startDate: today,
+                    endDate: today,
+                    reason: null,
+                    status: "REQUESTED",
+                  },
+                ]);
+              }}
             >
-              <select
-                aria-label={`Availability ${i + 1} day`}
-                className={input}
-                value={a.weekday}
-                onChange={(e) =>
-                  set(
-                    "availability",
-                    form.availability.map((x, n) =>
-                      n === i ? { ...x, weekday: Number(e.target.value) } : x,
-                    ),
-                  )
-                }
-              >
-                {WEEKDAYS.map((d, n) => (
-                  <option key={d} value={n}>
-                    {d}
-                  </option>
-                ))}
-              </select>
-              <input
-                aria-label={`Availability ${i + 1} from`}
-                type="time"
-                step={900}
-                className={input}
-                value={a.start}
-                onChange={(e) =>
-                  set(
-                    "availability",
-                    form.availability.map((x, n) =>
-                      n === i ? { ...x, start: e.target.value } : x,
-                    ),
-                  )
-                }
-              />
-              <input
-                aria-label={`Availability ${i + 1} to`}
-                type="time"
-                step={900}
-                className={input}
-                value={a.end}
-                onChange={(e) =>
-                  set(
-                    "availability",
-                    form.availability.map((x, n) =>
-                      n === i ? { ...x, end: e.target.value } : x,
-                    ),
-                  )
-                }
-              />
-            </Row>
-          ))}
-          <p className="text-xs text-muted-foreground">
-            An end before the start runs past midnight (e.g. 22:00 → 09:00).
-          </p>
-        </Section>
-
-        <Section
-          title="Time off"
-          onAdd={() => {
-            const today = new Date().toISOString().slice(0, 10);
-            set("timeOff", [
-              ...form.timeOff,
-              {
-                startDate: today,
-                endDate: today,
-                reason: null,
-                status: "REQUESTED",
-              },
-            ]);
-          }}
-        >
-          {form.timeOff.length === 0 && <Empty>No time off.</Empty>}
-          {form.timeOff.map((t, i) => (
-            <Row
-              key={i}
-              onRemove={() =>
-                set(
-                  "timeOff",
-                  form.timeOff.filter((_, n) => n !== i),
-                )
-              }
-              label={`time off ${i + 1}`}
-            >
-              <input
-                aria-label={`Time off ${i + 1} from`}
-                type="date"
-                className={input}
-                value={t.startDate}
-                onChange={(e) =>
-                  set(
-                    "timeOff",
-                    form.timeOff.map((x, n) =>
-                      n === i ? { ...x, startDate: e.target.value } : x,
-                    ),
-                  )
-                }
-              />
-              <input
-                aria-label={`Time off ${i + 1} to`}
-                type="date"
-                className={input}
-                value={t.endDate}
-                onChange={(e) =>
-                  set(
-                    "timeOff",
-                    form.timeOff.map((x, n) =>
-                      n === i ? { ...x, endDate: e.target.value } : x,
-                    ),
-                  )
-                }
-              />
-              <select
-                aria-label={`Time off ${i + 1} status`}
-                className={input}
-                value={t.status}
-                onChange={(e) =>
-                  set(
-                    "timeOff",
-                    form.timeOff.map((x, n) =>
-                      n === i
-                        ? { ...x, status: e.target.value as typeof t.status }
-                        : x,
-                    ),
-                  )
-                }
-              >
-                <option value="REQUESTED">Requested</option>
-                <option value="APPROVED">Approved</option>
-                <option value="DENIED">Denied</option>
-              </select>
-              <input
-                aria-label={`Time off ${i + 1} reason`}
-                placeholder="Reason"
-                className={input}
-                value={t.reason ?? ""}
-                onChange={(e) =>
-                  set(
-                    "timeOff",
-                    form.timeOff.map((x, n) =>
-                      n === i ? { ...x, reason: e.target.value || null } : x,
-                    ),
-                  )
-                }
-              />
-            </Row>
-          ))}
-          <p className="text-xs text-muted-foreground">
-            Whole days, both inclusive. Only approved time off blocks
-            scheduling.
-          </p>
-        </Section>
+              {form.timeOff.length === 0 && <Empty>No time off.</Empty>}
+              {form.timeOff.map((t, i) => (
+                <Row
+                  key={i}
+                  onRemove={() =>
+                    set(
+                      "timeOff",
+                      form.timeOff.filter((_, n) => n !== i),
+                    )
+                  }
+                  label={`time off ${i + 1}`}
+                >
+                  <input
+                    aria-label={`Time off ${i + 1} from`}
+                    type="date"
+                    className={input}
+                    value={t.startDate}
+                    onChange={(e) =>
+                      set(
+                        "timeOff",
+                        form.timeOff.map((x, n) =>
+                          n === i ? { ...x, startDate: e.target.value } : x,
+                        ),
+                      )
+                    }
+                  />
+                  <input
+                    aria-label={`Time off ${i + 1} to`}
+                    type="date"
+                    className={input}
+                    value={t.endDate}
+                    onChange={(e) =>
+                      set(
+                        "timeOff",
+                        form.timeOff.map((x, n) =>
+                          n === i ? { ...x, endDate: e.target.value } : x,
+                        ),
+                      )
+                    }
+                  />
+                  <select
+                    aria-label={`Time off ${i + 1} status`}
+                    className={input}
+                    value={t.status}
+                    onChange={(e) =>
+                      set(
+                        "timeOff",
+                        form.timeOff.map((x, n) =>
+                          n === i
+                            ? {
+                                ...x,
+                                status: e.target.value as typeof t.status,
+                              }
+                            : x,
+                        ),
+                      )
+                    }
+                  >
+                    <option value="REQUESTED">Requested</option>
+                    <option value="APPROVED">Approved</option>
+                    <option value="DENIED">Denied</option>
+                  </select>
+                  <input
+                    aria-label={`Time off ${i + 1} reason`}
+                    placeholder="Reason"
+                    className={input}
+                    value={t.reason ?? ""}
+                    onChange={(e) =>
+                      set(
+                        "timeOff",
+                        form.timeOff.map((x, n) =>
+                          n === i
+                            ? { ...x, reason: e.target.value || null }
+                            : x,
+                        ),
+                      )
+                    }
+                  />
+                </Row>
+              ))}
+              <p className="text-xs text-muted-foreground">
+                Whole days, both inclusive. Only approved time off blocks
+                scheduling.
+              </p>
+            </Section>
+          </fieldset>
+        </ViewingContext.Provider>
 
         {error && (
           <p
@@ -484,17 +513,30 @@ export function CrewEditor({
         )}
 
         <DialogFooter className="gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onClose}
-            disabled={pending}
-          >
-            Cancel
-          </Button>
-          <Button type="button" onClick={save} disabled={pending}>
-            {pending ? "Saving…" : crewId ? "Save" : "Add crew member"}
-          </Button>
+          {viewing ? (
+            <>
+              <Button type="button" variant="outline" onClick={onClose}>
+                Close
+              </Button>
+              <Button type="button" onClick={() => setViewing(false)}>
+                Edit
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                disabled={pending}
+              >
+                Cancel
+              </Button>
+              <Button type="button" onClick={save} disabled={pending}>
+                {pending ? "Saving…" : crewId ? "Save" : "Add crew member"}
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -510,11 +552,12 @@ function Section({
   onAdd?: () => void;
   children: React.ReactNode;
 }) {
+  const viewing = useContext(ViewingContext);
   return (
     <section className="space-y-2 border-t pt-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">{title}</h3>
-        {onAdd && (
+        {onAdd && !viewing && (
           <Button type="button" variant="outline" size="xs" onClick={onAdd}>
             + Add
           </Button>
@@ -572,18 +615,21 @@ function Row({
   onRemove: () => void;
   children: React.ReactNode;
 }) {
+  const viewing = useContext(ViewingContext);
   return (
     <div className="flex items-center gap-1.5 [&>*:not(button)]:min-w-0 [&>*:not(button)]:flex-1">
       {children}
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-sm"
-        aria-label={`Remove ${label}`}
-        onClick={onRemove}
-      >
-        ✕
-      </Button>
+      {!viewing && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label={`Remove ${label}`}
+          onClick={onRemove}
+        >
+          ✕
+        </Button>
+      )}
     </div>
   );
 }

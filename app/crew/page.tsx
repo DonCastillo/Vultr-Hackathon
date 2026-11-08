@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 
-import { AddCrewButton, EditCrewButton } from "@/components/crew/crew-buttons";
+import {
+  AddCrewButton,
+  EditCrewButton,
+  ViewCrewName,
+} from "@/components/crew/crew-buttons";
 import { getCrewForEdit } from "@/server/crew";
 import { getRosterView, getSettingsView } from "@/server/views";
 
@@ -12,6 +16,21 @@ const LEVEL: Record<string, string> = {
   CERTIFIED: "",
   TRAINER: "trainer",
 };
+// Column tooltips: what each column means and how the scheduling rules use it.
+const HINTS = {
+  crew: "Name, age, hourly wage, start year and personal weekly-hours cap. Youth = under the jurisdiction's youth age (school-day and late-night limits apply); Student = school-day limits apply; No SMS = never texted shift offers.",
+  stations:
+    "Stations this person is trained on. Plain = certified; 'trainee' can't be alone on rush-critical stations during the morning rush; 'trainer' can train others. Untrained stations can't be scheduled.",
+  certs:
+    "Certifications and expiry dates. Sandwich and Oven need a valid food-handler cert, Overnight Baker a baker cert, Shift Supervisor a supervisor cert. Expired certs (red) block those stations.",
+  availability:
+    "Weekly windows this person can work, in store time. Shifts and offers outside them are flagged Unavailable. A window ending before it starts runs past midnight.",
+  timeOff:
+    "Upcoming time off. Approved time off blocks scheduling and shift offers; requested time off is only a warning until approved.",
+};
+
+const RELIABILITY_HINT =
+  "How often this person accepts an extra-shift offer. When a call-out needs a replacement, more reliable crew are texted earlier (a tie-breaker after avoiding overtime and spreading pickups fairly).";
 const CERT: Record<string, string> = {
   FOOD_HANDLER: "Food handler",
   BAKER: "Baker",
@@ -50,12 +69,16 @@ export default async function CrewPage() {
         <table className="w-full min-w-[960px] text-sm">
           <thead className="bg-muted/60 text-left text-xs text-muted-foreground uppercase">
             <tr>
-              <th className="px-3 py-2">Crew</th>
-              <th className="px-3 py-2">Stations</th>
-              <th className="px-3 py-2">Certs</th>
-              <th className="px-3 py-2">Availability</th>
-              <th className="px-3 py-2">Time off</th>
-              <th className="px-3 py-2 text-right">Reliability</th>
+              <HintHeader label="Crew" hint={HINTS.crew} />
+              <HintHeader label="Stations" hint={HINTS.stations} />
+              <HintHeader label="Certs" hint={HINTS.certs} />
+              <HintHeader label="Availability" hint={HINTS.availability} />
+              <HintHeader label="Time off" hint={HINTS.timeOff} />
+              <HintHeader
+                label="Reliability"
+                hint={RELIABILITY_HINT}
+                className="text-right"
+              />
               <th className="px-3 py-2">
                 <span className="sr-only">Edit</span>
               </th>
@@ -65,7 +88,18 @@ export default async function CrewPage() {
             {view.crew.map((c) => (
               <tr key={c.id} className="border-t align-top">
                 <td className="px-3 py-2">
-                  <div className="font-medium">{c.name}</div>
+                  <div>
+                    {editById.get(c.id) ? (
+                      <ViewCrewName
+                        crewId={c.id}
+                        name={c.name}
+                        initial={editById.get(c.id)!}
+                        stations={stations}
+                      />
+                    ) : (
+                      <span className="font-medium">{c.name}</span>
+                    )}
+                  </div>
                   <div className="text-xs text-muted-foreground">
                     {c.age} · ${c.hourlyWage.toFixed(2)}/h · since{" "}
                     {c.hireDate.slice(0, 4)}
@@ -147,7 +181,10 @@ export default async function CrewPage() {
                     ))
                   )}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums">
+                <td
+                  className="cursor-help px-3 py-2 text-right tabular-nums"
+                  title={`${c.name} accepts about ${Math.round(c.reliability * 100)}% of shift offers. ${RELIABILITY_HINT}`}
+                >
                   {Math.round(c.reliability * 100)}%
                 </td>
                 <td className="px-3 py-2 text-right">
@@ -188,6 +225,40 @@ export default async function CrewPage() {
         </section>
       )}
     </div>
+  );
+}
+
+function HintHeader({
+  label,
+  hint,
+  className = "",
+}: {
+  label: string;
+  hint: string;
+  className?: string;
+}) {
+  // A CSS tooltip: shows at once on hover or keyboard focus (native title tooltips are slow
+  // and unreliable). Right-aligned columns open their tooltip to the left.
+  const alignRight = className.includes("text-right");
+  return (
+    <th className={`px-3 py-2 ${className}`}>
+      <span className="group relative inline-block">
+        <span
+          tabIndex={0}
+          aria-describedby={`hint-${label}`}
+          className="cursor-help whitespace-nowrap underline decoration-dotted underline-offset-2 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {label} ⓘ
+        </span>
+        <span
+          id={`hint-${label}`}
+          role="tooltip"
+          className={`pointer-events-none invisible absolute top-full z-30 mt-1.5 w-72 rounded-md bg-foreground px-3 py-2 text-left text-xs leading-snug font-normal tracking-normal text-background normal-case opacity-0 shadow-lg transition-opacity group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100 ${alignRight ? "right-0" : "left-0"}`}
+        >
+          {hint}
+        </span>
+      </span>
+    </th>
   );
 }
 

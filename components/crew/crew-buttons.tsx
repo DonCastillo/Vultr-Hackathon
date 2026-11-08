@@ -59,3 +59,39 @@ export function AddCrewButton({ stations }: { stations: Station[] }) {
     </>
   );
 }
+
+/** The crew member's name; clicking it opens their details read-only (with Edit). */
+export function ViewCrewName({
+  crewId,
+  name,
+  initial,
+  stations,
+}: {
+  crewId: string;
+  name: string;
+  initial: CrewEditInput;
+  stations: Station[];
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="text-left font-medium hover:text-primary hover:underline focus-visible:underline focus-visible:outline-none"
+        aria-label={`View ${name}`}
+      >
+        {name}
+      </button>
+      {open && (
+        <CrewEditor
+          crewId={crewId}
+          initial={initial}
+          stations={stations}
+          mode="view"
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </>
+  );
+}
