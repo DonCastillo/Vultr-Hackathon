@@ -1,5 +1,6 @@
-// Live check of the LLM layer: runs the four tasks once against the provider in .env
-// (LLM_PROVIDER=anthropic|vultr) with the demo data. Costs a fraction of a cent.
+// Live check of the LLM layer: runs the four app-facing functions once against the
+// provider in .env (LLM_PROVIDER=anthropic|vultr) with the demo data. A result that came
+// from a fallback instead of the model counts as a failure. Costs a fraction of a cent.
 //
 //   pnpm llm:smoke
 //   LLM_PROVIDER=vultr pnpm llm:smoke
@@ -7,14 +8,19 @@
 import "dotenv/config";
 
 import {
-  CLASSIFY_REPLY,
-  COMPOSE_OFFER,
+  classifyReply,
+  composeOffer,
   getTransport,
-  PARSE_CALLOUT,
-  runTask,
-  SUMMARIZE_PLAN,
-  type TaskResult,
+  parseCallout,
+  summarizePlan,
 } from "../server/llm/index";
+import { localWindow } from "../server/rules/time";
+
+const TZ = "America/Edmonton";
+const now = localWindow("2026-11-09", "04:40", "04:41", TZ).start;
+const monday = localWindow("2026-11-09", "05:30", "14:00", TZ);
+const beverage = localWindow("2026-11-09", "10:00", "14:00", TZ);
+const rush = localWindow("2026-11-09", "05:30", "10:00", TZ);
 
 const transport = await getTransport().catch((err: Error) => {
   console.error(`Couldn't set up the provider: ${err.message}`);
@@ -27,113 +33,149 @@ console.log(
 
 const options = { timeoutMs: 20_000 };
 let failures = 0;
-function show(name: string, r: TaskResult<unknown>) {
-  if (!r.ok) failures++;
+function show(
+  name: string,
+  r: {
+    source: string;
+    llm?: { ms: number; model?: string; error?: string; message?: string };
+  },
+  output: unknown,
+) {
+  const ok = r.source !== "fallback";
+  if (!ok) failures++;
+  const status = ok
+    ? `OK (${r.source})`
+    : `FAIL ${r.llm?.error}: ${r.llm?.message}`;
   console.log(
-    `\n${name}: ${r.ok ? "OK" : `FAIL ${r.error}: ${r.message}`} (${r.ms}ms, ${r.model ?? "?"})`,
+    `\n${name}: ${status} (${r.llm?.ms ?? 0}ms, ${r.llm?.model ?? "-"})`,
   );
-  console.log(r.ok ? JSON.stringify(r.data, null, 2) : (r.raw ?? ""));
+  console.log(JSON.stringify(output, null, 2));
 }
 
-show(
-  "parseCallout",
-  await runTask(
-    PARSE_CALLOUT,
-    {
-      message:
-        "hey its kayla, woke up sick, not gonna make it in this morning sorry",
-      crewFirstName: "Kayla",
-      now: "Mon Nov 9, 04:40",
-      shifts: [
-        {
-          id: "shift-a",
-          label: "Mon Nov 9 05:30-14:00, Drive-Thru headset then Beverage",
-        },
-        { id: "shift-b", label: "Tue Nov 10 05:30-14:00, Drive-Thru headset" },
-      ],
-    },
-    options,
-  ),
+const parsed = await parseCallout(
+  {
+    message:
+      "hey its kayla, woke up sick, not gonna make it in this morning sorry",
+    crew: { id: "kayla", firstName: "Kayla" },
+    now,
+    timezone: TZ,
+    shifts: [
+      {
+        id: "shift-mon",
+        ...monday,
+        stationNames: ["Drive-Thru Order Taker", "Beverage/Barista"],
+      },
+      {
+        id: "shift-tue",
+        ...localWindow("2026-11-10", "05:30", "14:00", TZ),
+        stationNames: ["Drive-Thru Order Taker"],
+      },
+    ],
+  },
+  options,
 );
+show("parseCallout", parsed, {
+  isCallout: parsed.isCallout,
+  shiftId: parsed.shiftId,
+  reason: parsed.reason,
+  confidence: parsed.confidence,
+});
 
-show(
-  "summarizePlan",
-  await runTask(
-    SUMMARIZE_PLAN,
-    {
-      storeName: "Maple & Mug Coffee Co.",
-      callOut: "Kayla, Mon 05:30-14:00 (sick)",
-      gaps: [
-        "Drive-Thru Order Taker Mon 05:30-10:00: 1 of 2 scheduled",
-        "Beverage/Barista Mon 10:00-14:00: 0 of 1 scheduled",
-      ],
-      moves: ["Aisha: Lobby -> Drive-Thru Order Taker Mon 05:30-10:00"],
-      remaining: [
-        "Beverage/Barista Mon 10:00-14:00",
-        "Lobby Mon 05:30-10:00 (no legal fill)",
-      ],
-      candidates: [
-        {
-          crewId: "ben",
-          name: "Ben",
-          kind: "CALL_IN",
-          isOvertime: false,
-          reasons: ["Certified on Beverage/Barista", "No overtime"],
-        },
-        {
-          crewId: "noah",
-          name: "Noah",
-          kind: "CALL_IN",
-          isOvertime: false,
-          reasons: ["Certified on Beverage/Barista", "Rested by 10:00"],
-        },
-        {
-          crewId: "sofia",
-          name: "Sofia",
-          kind: "EXTEND",
-          isOvertime: true,
-          reasons: [
-            "Trainer on Beverage/Barista",
-            "Overtime: +1.5h; needs approval",
-          ],
-        },
-      ],
+const summary = await summarizePlan(
+  {
+    storeName: "Maple & Mug Coffee Co.",
+    timezone: TZ,
+    stationNames: {
+      dtot: "Drive-Thru Order Taker",
+      bev: "Beverage/Barista",
+      lobby: "Lobby",
     },
-    options,
-  ),
+    crewNames: {
+      kayla: "Kayla",
+      aisha: "Aisha",
+      ben: "Ben",
+      noah: "Noah",
+      sofia: "Sofia",
+    },
+    callOut: { crewId: "kayla", shift: monday, reason: "sick" },
+    gaps: [
+      { stationId: "dtot", ...rush, required: 2, scheduled: 1, missing: 1 },
+      { stationId: "bev", ...beverage, required: 1, scheduled: 0, missing: 1 },
+    ],
+    moves: [
+      { crewId: "aisha", fromStationId: "lobby", toStationId: "dtot", ...rush },
+    ],
+    remaining: [
+      { stationId: "bev", ...beverage, missing: 1 },
+      { stationId: "lobby", ...rush, missing: 1 },
+    ],
+    candidates: [
+      {
+        crewId: "ben",
+        stationId: "bev",
+        window: beverage,
+        kind: "CALL_IN",
+        isOvertime: false,
+        reasons: ["Certified on Beverage/Barista", "No overtime"],
+      },
+      {
+        crewId: "noah",
+        stationId: "bev",
+        window: beverage,
+        kind: "CALL_IN",
+        isOvertime: false,
+        reasons: ["Certified on Beverage/Barista", "Rested by 10:00"],
+      },
+      {
+        crewId: "sofia",
+        stationId: "bev",
+        window: beverage,
+        kind: "EXTEND",
+        isOvertime: true,
+        reasons: [
+          "Trainer on Beverage/Barista",
+          "Overtime: +1.5h; needs approval",
+        ],
+      },
+    ],
+  },
+  options,
 );
+show("summarizePlan", summary, {
+  summary: summary.summary,
+  rationales: summary.rationales,
+});
 
-show(
-  "composeOffer",
-  await runTask(
-    COMPOSE_OFFER,
-    {
-      firstName: "Ben",
-      storeName: "Maple & Mug Coffee Co.",
-      stationName: "Beverage/Barista",
-      windowLabel: "today 10:00-14:00",
-      kind: "CALL_IN",
-      isOvertime: false,
-      replyMinutes: 10,
-    },
-    options,
-  ),
+const offer = await composeOffer(
+  {
+    firstName: "Ben",
+    storeName: "Maple & Mug Coffee Co.",
+    stationName: "Beverage/Barista",
+    window: beverage,
+    timezone: TZ,
+    now,
+    kind: "CALL_IN",
+    isOvertime: false,
+    replyMinutes: 10,
+  },
+  options,
 );
+show("composeOffer", offer, { text: offer.text });
 
-show(
-  "classifyReply",
-  await runTask(
-    CLASSIFY_REPLY,
-    {
-      offerText:
-        "Hi Ben, can you cover Beverage/Barista today 10:00-14:00? Reply YES or NO within 10 min.",
-      reply: "ya i can but only until 1, got class after",
-    },
-    options,
-  ),
+const reply = await classifyReply(
+  {
+    offerText: offer.text,
+    reply: "ya i can but only until 1, got class after",
+  },
+  options,
 );
+show("classifyReply", reply, {
+  intent: reply.intent,
+  condition: reply.condition,
+  question: reply.question,
+});
 
 console.log(
-  `\n${failures === 0 ? "All 4 tasks OK" : `${failures} of 4 tasks failed`}`,
+  `\n${failures === 0 ? "All 4 functions answered by the model" : `${failures} of 4 fell back`}`,
 );
 process.exit(failures === 0 ? 0 : 1);

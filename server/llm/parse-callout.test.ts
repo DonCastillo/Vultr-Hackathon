@@ -162,7 +162,7 @@ describe("parseCallout", () => {
     expect(await parseCallout(request(), { transport })).toMatchObject({
       isCallout: true,
       shiftId: "cuid-mon",
-      reason: null,
+      reason: "sick", // recovered by the keyword fallback
       confidence: 0,
       needsConfirmation: true,
       source: "fallback",

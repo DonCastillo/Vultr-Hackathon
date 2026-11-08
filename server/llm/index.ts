@@ -86,6 +86,8 @@ export interface LlmTask<I, O> {
   user(input: I): string;
   schema: z.ZodType<O>;
   maxTokens: number;
+  /** Default deadline for this task (LLM_TIMEOUT_MS or the call's timeoutMs override it). */
+  timeoutMs?: number;
   /** Cross-checks output against input (e.g. ids must come from the input); returns a problem or null. */
   check?(input: I, output: O): string | null;
 }
@@ -114,6 +116,17 @@ export type TaskResult<O> =
 
 export const DEFAULT_TIMEOUT_MS = 8_000;
 
+/** LLM_TIMEOUT_MS from the environment, if it is a positive number. */
+function envTimeoutMs(): number | undefined {
+  const v = Number(process.env.LLM_TIMEOUT_MS);
+  return Number.isFinite(v) && v > 0 ? v : undefined;
+}
+
+/** LLM_DISABLED=1 (or true) skips the LLM entirely: every function uses its fallback. */
+export function llmDisabled(): boolean {
+  return /^(1|true|yes)$/i.test(process.env.LLM_DISABLED ?? "");
+}
+
 /** Pulls a JSON object out of model text (tolerates code fences or a sentence around it). */
 export function extractJson(text: string): unknown {
   const trimmed = text.trim();
@@ -139,6 +152,15 @@ export async function runTask<I, O>(
   const started = Date.now();
   const ms = () => Date.now() - started;
 
+  if (llmDisabled() && !options.transport) {
+    return {
+      ok: false,
+      error: "NO_PROVIDER",
+      message: "LLM_DISABLED is set",
+      ms: ms(),
+    };
+  }
+
   let transport: LlmTransport;
   try {
     transport = options.transport ?? (await getTransport());
@@ -152,13 +174,15 @@ export async function runTask<I, O>(
   }
   const meta = { provider: transport.provider, model: transport.model };
 
-  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const timeoutMs =
+    options.timeoutMs ?? envTimeoutMs() ?? task.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<"timeout">((resolve) => {
     timer = setTimeout(() => {
-      controller.abort();
+      // Settle as a timeout first, then cancel: a transport that answers on abort must not win.
       resolve("timeout");
+      controller.abort();
     }, timeoutMs);
   });
 
@@ -271,6 +295,7 @@ export type ParseCalloutOutput = z.infer<typeof ParseCalloutSchema>;
 export const PARSE_CALLOUT: LlmTask<ParseCalloutInput, ParseCalloutOutput> = {
   name: "parseCallout",
   maxTokens: 300,
+  timeoutMs: 8_000,
   schema: ParseCalloutSchema,
   system: [
     "You read a text message that a crew member sent to their coffee shop's scheduling line.",
@@ -358,6 +383,53 @@ export function calloutShiftLabel(s: CalloutShift, timezone: string): string {
   return `${day} ${time(s.start)}-${time(s.end)}${stations}`;
 }
 
+const CALLOUT_WORDS =
+  /\b(sick|ill|unwell|fever|flu|covid|throw(ing)? up|vomit\w*|migraine|can'?t (make it|come|work|do (it|today|tomorrow))|won'?t (make it|be (in|able|there))|not (coming|going to make|gonna make|able to)|call(ing)? (out|in sick)|emergency|hospital|car (broke|won'?t start|trouble)|no ride)\b/;
+const NOT_CALLOUT_WORDS =
+  /\b(running late|be (a bit |a few min\w* )?late|few min\w* late|swap|switch|trade)\b/;
+
+/** Neutral reason categories (never symptoms), matching the parseCallout prompt. */
+function keywordReason(m: string): string | null {
+  if (/\b(emergency|hospital|family|funeral)\b/.test(m))
+    return "family emergency";
+  if (/\b(car|ride|bus|stuck|flat tire)\b/.test(m)) return "car trouble";
+  if (
+    /\b(sick|ill|unwell|fever|flu|covid|throw(ing)? up|vomit\w*|migraine)\b/.test(
+      m,
+    )
+  )
+    return "sick";
+  return null;
+}
+
+/**
+ * The keyword fallback for parseCallout when the LLM is unavailable. Spots plain
+ * non-call-outs (running late, swaps), picks a neutral reason, and honours "today" or
+ * "tomorrow"; otherwise assumes a call-out for the next shift (the caller asks to confirm).
+ */
+export function keywordCallout(
+  message: string,
+  upcoming: CalloutShift[],
+  now: Date,
+  timezone: string,
+): { isCallout: boolean; shiftId: string | null; reason: string | null } {
+  const m = message.toLowerCase().replace(/[‘’]/g, "'");
+  if (NOT_CALLOUT_WORDS.test(m) && !CALLOUT_WORDS.test(m)) {
+    return { isCallout: false, shiftId: null, reason: null };
+  }
+  const today = localDate(now, timezone);
+  const onDay = (date: string) =>
+    upcoming.find((s) => localDate(s.start, timezone) === date)?.id;
+  const shiftId =
+    (/\btomorrow\b/.test(m) ? onDay(addDays(today, 1)) : undefined) ??
+    (/\b(today|tonight|this (morning|afternoon|evening))\b/.test(m)
+      ? onDay(today)
+      : undefined) ??
+    upcoming[0]?.id ??
+    null;
+  return { isCallout: true, shiftId, reason: keywordReason(m) };
+}
+
 /**
  * Reads a crew member's text: is it a call-out, for which of their shifts, and why.
  * Never throws. If the LLM fails, falls back to their next shift and asks to confirm.
@@ -418,14 +490,15 @@ export async function parseCallout(
     };
   }
 
-  // Fallback (architecture: "sender's next shift; asks to confirm").
+  // Fallback (architecture: "sender's next shift; asks to confirm"), sharpened by keywords.
+  const guess = keywordCallout(request.message, upcoming, now, timezone);
   return {
     crewId: crew.id,
-    isCallout: true,
-    shiftId: upcoming[0]?.id ?? null,
-    reason: null,
+    isCallout: guess.isCallout,
+    shiftId: guess.shiftId,
+    reason: guess.reason,
     confidence: 0,
-    needsConfirmation: true,
+    needsConfirmation: guess.isCallout,
     source: "fallback",
     llm: {
       provider: result.provider,
@@ -473,6 +546,7 @@ export const SUMMARIZE_PLAN: LlmTask<SummarizePlanInput, SummarizePlanOutput> =
   {
     name: "summarizePlan",
     maxTokens: 800,
+    timeoutMs: 12_000,
     schema: SummarizePlanSchema,
     system: [
       "You explain a shift recovery plan to a busy coffee shop manager early in the morning.",
@@ -694,6 +768,7 @@ export type ComposeOfferOutput = z.infer<typeof ComposeOfferSchema>;
 export const COMPOSE_OFFER: LlmTask<ComposeOfferInput, ComposeOfferOutput> = {
   name: "composeOffer",
   maxTokens: 300,
+  timeoutMs: 8_000,
   schema: ComposeOfferSchema,
   system: [
     "You write one SMS from a coffee shop's scheduling assistant offering a shift to a crew member.",
@@ -850,6 +925,7 @@ export const CLASSIFY_REPLY: LlmTask<ClassifyReplyInput, ClassifyReplyOutput> =
   {
     name: "classifyReply",
     maxTokens: 250,
+    timeoutMs: 6_000,
     schema: ClassifyReplySchema,
     system: [
       "You classify a crew member's text reply to a shift offer.",
