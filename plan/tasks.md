@@ -41,7 +41,7 @@ Cut-line tasks (not counted in the totals above) add up to about 2.5h, which can
 ## 2. Rules engine & solver | 4.5h
 - [x] 2.1 `server/rules/presets.ts`: Alberta (8h/day or 44h/week, 8h rest, under-15 youth limits), Ontario (44h, 11h rest), BC (8h/day + 40h/week), US FLSA (+ youth limits) (20m)
 - [x] 2.2 `server/rules/eligibility.ts`: training level, availability, PTO, overlap, rest gap/clopen, cert expiry (45m)
-- [ ] 2.3 `server/rules/overtime.ts`: weekly/daily OT under each preset (20m)
+- [x] 2.3 `server/rules/overtime.ts`: weekly/daily OT under each preset (20m)
 - [ ] 2.4 `server/rules/youth.ts`: school-day hours, latest end time, restricted stations (20m)
 - [ ] 2.5 `server/rules/coverage.ts`: required vs. scheduled per station per 15-min slot; shortfalls; supervisor rule (40m)
 - [ ] 2.6 `server/solver/rebalance.ts`: greedy + backtracking station reassignment by priority (50m)
