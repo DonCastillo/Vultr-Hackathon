@@ -28,6 +28,7 @@ Dayparts: Overnight (11pm–5am), **Morning Rush (5:30–10am, peak)**, Midday (
 
 ## Domain rules (deterministic engine in `server/rules/`, unit-tested)
 - **Jurisdiction presets** (set once in Settings; simplified, with a "not legal advice" disclaimer):
+  - **Alberta (the demo store's preset):** OT after **8h/day or 44h/week**, whichever gives more OT; 8h rest between shifts; under-15s at most 2h on school days, 8h on other days, and never past 9pm
   - Ontario: OT after **44h/week**, 11h daily rest, students under 16 limited on school days
   - British Columbia: OT after **8h/day and 40h/week**
   - US federal (FLSA): OT after 40h/week, 14–15-year-olds ≤3h school days and not past 7pm
@@ -64,13 +65,13 @@ Dayparts: Overnight (11pm–5am), **Morning Rush (5:30–10am, peak)**, Midday (
 `Store` (single row: name, jurisdiction, timezone, open hours), `Station` (name, priority, requiresCert), `Crew` (name, phone, birthdate, isStudent, wage, seniority, reliability), `CrewStation` (level), `Cert` (type, expiresAt), `Availability`, `TimeOff`, `SchoolDay` (date), `Shift` (crewId, start, end), `StationAssignment` (shiftId, stationId, start, end), `CoverageRule` (stationId, weekday, daypart, minCount), `CallOut`, `RecoveryPlan` (moves JSON, shortfall JSON, summary), `Offer` (callOutId, crewId, stationId, kind: callin/extend, rank, status, expiresAt), `Message`, `AuditEvent`, `RuleConfig`.
 
 ## Key files
-- `server/rules/{eligibility,youth,overtime,coverage}.ts` + `server/rules/presets.ts` (ON/BC/US): pure, with vitest tests
+- `server/rules/{eligibility,youth,overtime,coverage}.ts` + `server/rules/presets.ts` (AB/ON/BC/US): pure, with vitest tests
 - `server/solver/rebalance.ts`, `server/rank.ts`
 - `server/llm/` (`index.ts` provider-agnostic interface, `anthropic.ts`, `vultr.ts`) + prompts (parseCallout, summarizePlan, composeOffer, classifyReply), zod-validated with keyword fallback
 - `server/sms/{index,sim,twilio}.ts`, `server/outreach.ts` (state machine), `worker/index.ts`
 - `app/(app)/schedule/week`, `app/(app)/schedule/day/[date]`, `app/(app)/callouts/[id]`, `app/(app)/crew`, `app/sim`, `app/settings`
 - API: `POST /api/callouts`, `POST /api/callouts/[id]/apply`, `POST /api/sms/inbound`, `GET /api/callouts/[id]/events` (SSE)
-- `prisma/seed.ts`: the standalone Maple & Mug store (Ontario), ~20 crew (students, trainees, an overnight baker, supervisors), a full week scheduled. Demo scenario: **the 5:30am drive-thru headset person texts in sick at 4:40am.**
+- `prisma/seed.ts`: the standalone Maple & Mug store (Calgary, Alberta), ~20 crew (students, trainees, an overnight baker, supervisors), a full week scheduled. Demo scenario: **the 5:30am drive-thru headset person texts in sick at 4:40am.**
 - `docker-compose.yml`, `Dockerfile`, `Caddyfile`, `README.md` (Vultr services, architecture diagram, setup, use case)
 
 ## Build order (time-boxed)
@@ -93,7 +94,7 @@ Buffer: about 6h. **Cut-line if late:** drop auto-fill, labour %, Twilio and con
 4. (Optional) Twilio trial account plus a verified phone
 
 ## Verification
-- vitest: untrained, OT under the ON 44h vs. BC daily rules, youth school-day limit, clopen, PTO, overlap, expired food-handler cert; coverage shortfall; solver picks the lowest-priority donor; ranking order
+- vitest: untrained, OT under the AB 8h-day-or-44h-week rule vs. ON 44h and BC daily rules, youth school-day limit, clopen, PTO, overlap, expired food-handler cert; coverage shortfall; solver picks the lowest-priority donor; ranking order
 - Local E2E on the seed: day board for Morning Rush (green), mark the 5:30 headset crew sick (Drive-Thru turns red), get a recovery plan (move Lobby→headset, extend the overnight baker on Oven, call in a Beverage replacement), apply, start outreach. Candidate 1 times out, 2 declines, 3 accepts. Check the board is green, moved crew notified, the timeline complete.
 - Race test: two sim phones accept at once; only one wins
 - Same flow on the public Vultr URL

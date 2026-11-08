@@ -19,6 +19,7 @@ datasource db {
 // ---------------------------------------------------------------------------
 
 enum Jurisdiction {
+  ALBERTA
   ONTARIO
   BRITISH_COLUMBIA
   US_FEDERAL
@@ -115,8 +116,8 @@ model Store {
   name         String
   address      String?
   phone        String?
-  timezone     String       @default("America/Toronto")
-  jurisdiction Jurisdiction @default(ONTARIO)
+  timezone     String       @default("America/Edmonton")
+  jurisdiction Jurisdiction @default(ALBERTA)
   openTime     DateTime     @db.Time(0)
   closeTime    DateTime     @db.Time(0)
   managerName  String
@@ -138,11 +139,13 @@ model RuleConfig {
   storeId                 String      @unique
   weeklyOtHours           Decimal     @db.Decimal(4, 1)
   dailyOtHours            Decimal?    @db.Decimal(4, 1)
-  minRestHours            Decimal     @default(11) @db.Decimal(4, 1)
+  minRestHours            Decimal     @default(8) @db.Decimal(4, 1)
   maxConsecutiveDays      Int         @default(6)
-  youthMaxSchoolDayHours  Decimal     @default(3) @db.Decimal(3, 1)
-  youthMaxSchoolWeekHours Decimal     @default(18) @db.Decimal(4, 1)
-  youthLatestEnd          DateTime    @default(dbgenerated("'19:00:00'::time without time zone")) @db.Time(0)
+  /// Youth rules apply to crew younger than this (AB 15, ON 16, US 16).
+  youthUnderAge           Int         @default(15) @db.SmallInt
+  youthMaxSchoolDayHours  Decimal     @default(2) @db.Decimal(3, 1)
+  youthMaxSchoolWeekHours Decimal?    @db.Decimal(4, 1)
+  youthLatestEnd          DateTime    @default(dbgenerated("'21:00:00'::time without time zone")) @db.Time(0)
   offerTimeoutSec         Int         @default(600)
   demoMode                Boolean     @default(false)
   smsProvider             SmsProvider @default(SIM)

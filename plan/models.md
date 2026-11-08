@@ -17,7 +17,7 @@ What each enum means and where it is used: [enums.md](enums.md).
 
 | Enum | Values |
 |---|---|
-| `Jurisdiction` | `ONTARIO`, `BRITISH_COLUMBIA`, `US_FEDERAL` |
+| `Jurisdiction` | `ALBERTA`, `ONTARIO`, `BRITISH_COLUMBIA`, `US_FEDERAL` |
 | `TrainingLevel` | `TRAINEE`, `CERTIFIED`, `TRAINER` |
 | `CertType` | `FOOD_HANDLER`, `BAKER`, `SUPERVISOR`, `FIRST_AID` |
 | `Daypart` | `OVERNIGHT`, `MORNING_RUSH`, `MIDDAY`, `AFTERNOON`, `EVENING_CLOSE` |
@@ -42,8 +42,8 @@ The single standalone coffee shop.
 | `name` | String → `TEXT` | not null | "Maple & Mug Coffee Co." |
 | `address` | String? → `TEXT` | | |
 | `phone` | String? → `TEXT` | | Store/manager contact number |
-| `timezone` | String → `TEXT` | not null, default `America/Toronto` | IANA timezone |
-| `jurisdiction` | Jurisdiction → enum | not null, default `ONTARIO` | Labour-rule preset |
+| `timezone` | String → `TEXT` | not null, default `America/Edmonton` | IANA timezone |
+| `jurisdiction` | Jurisdiction → enum | not null, default `ALBERTA` | Labour-rule preset |
 | `openTime` | DateTime → `TIME` | not null | e.g. `05:00` |
 | `closeTime` | DateTime → `TIME` | not null | e.g. `23:00` |
 | `managerName` | String → `TEXT` | not null | |
@@ -56,13 +56,14 @@ Rule settings. One row, linked 1:1 to Store. Defaults come from the jurisdiction
 |---|---|---|---|
 | `id` | String → `TEXT` | PK | |
 | `storeId` | String → `TEXT` | FK → Store, unique | |
-| `weeklyOtHours` | Decimal → `NUMERIC(4,1)` | not null | ON 44, BC 40, US 40 |
-| `dailyOtHours` | Decimal? → `NUMERIC(4,1)` | | BC 8; null = no daily OT |
-| `minRestHours` | Decimal → `NUMERIC(4,1)` | not null, default 11 | Between shifts (clopen check) |
+| `weeklyOtHours` | Decimal → `NUMERIC(4,1)` | not null | AB 44, ON 44, BC 40, US 40 |
+| `dailyOtHours` | Decimal? → `NUMERIC(4,1)` | | AB 8, BC 8; null = no daily OT. AB pays whichever of daily or weekly OT is greater |
+| `minRestHours` | Decimal → `NUMERIC(4,1)` | not null, default 8 | Between shifts (clopen check). AB 8, ON 11 |
 | `maxConsecutiveDays` | Int → `INTEGER` | not null, default 6 | |
-| `youthMaxSchoolDayHours` | Decimal → `NUMERIC(3,1)` | not null, default 3 | Under-16 limit on school days |
-| `youthMaxSchoolWeekHours` | Decimal → `NUMERIC(4,1)` | not null, default 18 | |
-| `youthLatestEnd` | DateTime → `TIME` | not null, default `19:00` | Latest end time for under-16 on school days |
+| `youthUnderAge` | Int → `SMALLINT` | not null, default 15, 0–18 | Youth rules apply to crew younger than this (AB 15, ON 16, US 16) |
+| `youthMaxSchoolDayHours` | Decimal → `NUMERIC(3,1)` | not null, default 2 | Youth limit on school days (AB 2, US 3) |
+| `youthMaxSchoolWeekHours` | Decimal? → `NUMERIC(4,1)` | | Youth limit per school week; null = no weekly cap (AB) |
+| `youthLatestEnd` | DateTime → `TIME` | not null, default `21:00` | Latest end time for youth crew (AB 21:00, US 19:00) |
 | `offerTimeoutSec` | Int → `INTEGER` | not null, default 600 | 10 min real mode |
 | `demoMode` | Boolean → `BOOLEAN` | not null, default false | When true, the offer timeout is 120s |
 | `smsProvider` | SmsProvider → enum | not null, default `SIM` | |
@@ -80,7 +81,7 @@ A position in the store (Drive-Thru headset, Beverage, Oven, …).
 | `priority` | Int → `INTEGER` | not null | Lower = more critical (Drive-Thru = 1, Lobby = 9). Used by the rebalance solver |
 | `requiredCert` | CertType? → enum | | e.g. `FOOD_HANDLER` for Sandwich/Oven |
 | `minLevelDuringRush` | TrainingLevel → enum | not null, default `TRAINEE` | `CERTIFIED` = trainees can't work it alone at rush |
-| `youthRestricted` | Boolean → `BOOLEAN` | not null, default false | Under-16 can't be assigned (e.g. Oven) |
+| `youthRestricted` | Boolean → `BOOLEAN` | not null, default false | Youth crew can't be assigned (e.g. Oven) |
 | `isSupervisor` | Boolean → `BOOLEAN` | not null, default false | Counts toward the "supervisor on floor" rule |
 | `active` | Boolean → `BOOLEAN` | not null, default true | |
 
@@ -94,7 +95,7 @@ An employee of the store.
 | `firstName` | String → `TEXT` | not null | Used in SMS and LLM prompts |
 | `lastName` | String → `TEXT` | not null | |
 | `phone` | String → `TEXT` | not null, unique | E.164 (`+14165550123`); matches inbound SMS |
-| `birthdate` | DateTime → `DATE` | not null | Derives under-16 / under-18 |
+| `birthdate` | DateTime → `DATE` | not null | Derives the youth flag and under-18 |
 | `isStudent` | Boolean → `BOOLEAN` | not null, default false | Enables school-day youth limits |
 | `hourlyWage` | Decimal → `NUMERIC(6,2)` | not null | For labour % |
 | `hireDate` | DateTime → `DATE` | not null | Seniority tiebreak |
@@ -295,6 +296,6 @@ Append-only log of everything the agent did, shown as the call-out timeline.
 ---
 
 ## Notes
-- **Derived values (not stored):** age and the under-16 flag (from `birthdate` and the shift date), weekly hours (sum of shift durations minus breaks), labour % (hours × `hourlyWage` ÷ projected sales), and coverage per 15-min slot (from `StationAssignment` vs `CoverageRule`).
+- **Derived values (not stored):** age and the youth flag (age below `RuleConfig.youthUnderAge`, from `birthdate` and the shift date), weekly hours (sum of shift durations minus breaks), labour % (hours × `hourlyWage` ÷ projected sales), and coverage per 15-min slot (from `StationAssignment` vs `CoverageRule`).
 - **The partial unique index** on `Offer` isn't expressible in the Prisma schema. It goes in a raw SQL migration: `CREATE UNIQUE INDEX one_live_offer ON "Offer"("callOutId") WHERE status IN ('SENT','CLARIFYING');`
 - **New compared with the earlier plan:** `SchoolDay`, which the youth school-day rules need. `RuleConfig` also gains `youth*` and `demoMode` fields.

@@ -68,7 +68,7 @@ There is one Next.js app; the split is by folder:
 
 - **Rules decide, the LLM talks.** These are pure, unit-tested TypeScript with no LLM involvement:
   - eligibility, overtime, youth labour limits, rest gap/clopen, cert expiry and coverage: `server/rules/`
-  - jurisdiction presets for Ontario, BC and US federal: `server/rules/presets.ts`
+  - jurisdiction presets for Alberta (the default), Ontario, BC and US federal: `server/rules/presets.ts`
   - the rebalance solver: `server/solver/rebalance.ts`
   - ranking: `server/rank.ts`
 
@@ -80,7 +80,7 @@ There is one Next.js app; the split is by folder:
   - Offer: `PENDING → SENT → ACCEPTED | DECLINED | EXPIRED | CANCELLED`, with `CLARIFYING` as a loop back to `SENT`
   - Logic lives in `server/outreach.ts`. Both `web` (inbound replies) and `worker` (expiries) drive it.
 - **Audit everything.** Every rule result, LLM input/output, message and decision is written to `AuditEvent` and streamed to the call-out page over SSE (`GET /api/callouts/[id]/events`).
-- **Time handling.** Datetimes are stored as UTC `TIMESTAMPTZ`. Times-of-day (`TIME`) are local store time in `Store.timezone` (default `America/Toronto`). Coverage is computed in 15-minute slots.
+- **Time handling.** Datetimes are stored as UTC `TIMESTAMPTZ`. Times-of-day (`TIME`) are local store time in `Store.timezone` (default `America/Edmonton`). Coverage is computed in 15-minute slots.
 - **Demo mode** (`RuleConfig.demoMode`) shortens the offer timeout from 600s to 120s for the demo video.
 
 ## Submission requirements to keep in mind

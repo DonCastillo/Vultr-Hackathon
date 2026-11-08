@@ -95,7 +95,7 @@ flowchart TB
     end
 
     subgraph Domain["Backend core (server/): pure TypeScript, guarded by server-only"]
-        Rules["rules/<br/>eligibility · overtime · youth<br/>coverage · presets (ON/BC/US)"]
+        Rules["rules/<br/>eligibility · overtime · youth<br/>coverage · presets (AB/ON/BC/US)"]
         Solver["solver/rebalance<br/>in-shift station moves"]
         Rank["rank<br/>call-in & extend candidates"]
         Outreach["outreach<br/>offer state machine"]

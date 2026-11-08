@@ -7,9 +7,9 @@ What each enum in [models.md](models.md#enums) means and where it is used. The P
 ## Store and rules
 
 ### `Jurisdiction`
-`ONTARIO`, `BRITISH_COLUMBIA`, `US_FEDERAL`
+`ALBERTA`, `ONTARIO`, `BRITISH_COLUMBIA`, `US_FEDERAL`
 
-The labour-law preset the store follows (`Store.jurisdiction`). It sets the defaults in `RuleConfig`, such as weekly overtime: Ontario 44h, BC 40h plus 8h/day, US 40h. The presets live in `server/rules/presets.ts`.
+The labour-law preset the store follows (`Store.jurisdiction`). It sets the defaults in `RuleConfig`, such as overtime and rest: Alberta 8h/day or 44h/week with 8h rest (the default; the demo store is in Calgary), Ontario 44h/week with 11h rest, BC 40h plus 8h/day, US 40h. The presets live in `server/rules/presets.ts`.
 
 ### `SmsProvider`
 `SIM`, `TWILIO`
