@@ -157,7 +157,7 @@ export const CREW: CrewSeed[] = [
     hourlyWage: 16.25,
     hireDate: "2022-08-22",
     reliability: 0.86,
-    stations: { LOBBY: C, "DT-OT": C, CTR: C, "DT-WIN": T },
+    stations: { LOBBY: C, "DT-OT": C, CTR: C },
     availability: [{ days: WEEKDAYS, start: "05:00", end: "14:00" }],
   },
   {

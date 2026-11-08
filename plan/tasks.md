@@ -43,7 +43,7 @@ Cut-line tasks (not counted in the totals above) add up to about 2.5h, which can
 - [x] 2.2 `server/rules/eligibility.ts`: training level, availability, PTO, overlap, rest gap/clopen, cert expiry (45m)
 - [x] 2.3 `server/rules/overtime.ts`: weekly/daily OT under each preset (20m)
 - [x] 2.4 `server/rules/youth.ts`: school-day hours, latest end time, restricted stations (20m)
-- [ ] 2.5 `server/rules/coverage.ts`: required vs. scheduled per station per 15-min slot; shortfalls; supervisor rule (40m)
+- [x] 2.5 `server/rules/coverage.ts`: required vs. scheduled per station per 15-min slot; shortfalls; supervisor rule (40m)
 - [ ] 2.6 `server/solver/rebalance.ts`: greedy + backtracking station reassignment by priority (50m)
 - [ ] 2.7 `server/rank.ts`: replacement scoring (no-OT, fairness, reliability, seniority) + shift-extension candidates (30m)
 - [ ] 2.8 vitest suite for all of the above (edge cases from the plan's Verification section) (45m)
