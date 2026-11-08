@@ -862,3 +862,171 @@ export const CLASSIFY_REPLY: LlmTask<ClassifyReplyInput, ClassifyReplyOutput> =
     user: (i) =>
       [quote("offer", i.offerText), quote("reply", i.reply)].join("\n"),
   };
+
+export interface ClassifiedReply {
+  intent: ReplyIntent;
+  condition: string | null;
+  question: string | null;
+  confidence: number;
+  /** keyword: an obvious yes/no, no LLM call; llm: the model; fallback: keywords after an LLM failure. */
+  source: "keyword" | "llm" | "fallback";
+  llm?: {
+    provider?: LlmProvider;
+    model?: string;
+    ms: number;
+    error?: TaskError;
+    message?: string;
+  };
+}
+
+/** An ACCEPT books the shift, so the model must be at least this sure. */
+export const ACCEPT_CONFIDENCE_THRESHOLD = 0.8;
+
+const YES_WORDS =
+  /\b(yes|yeah|yea|ya|yep|yup|sure|ok|okay|absolutely|definitely|i can|i'?m in|count me in|omw|on my way|be there|deal|works for me)\b/;
+const NO_WORDS = /\b(no|nope|nah|not|can'?t|cannot|won'?t|unable|pass|busy)\b/;
+const CONDITION_WORDS =
+  /\b(but|only|until|till|til|after|before|unless|if|later|earlier|late|leave at|start at)\b/;
+const QUESTION_START =
+  /^(what|when|where|which|who|how|why|is|are|can|could|do|does|will|would|should)\b/;
+
+/** Lowercase, straight quotes, collapse spaces; keep letters, digits, ' and ?. */
+function normalizeReply(reply: string): string {
+  return (
+    reply
+      .toLowerCase()
+      .replace(/[‘’]/g, "'")
+      .replace(/[^a-z0-9'?:\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      // "no problem" is a yes, not a no.
+      .replace(
+        /\b(no problem|no prob|no worries|not a problem|no biggie)\b/g,
+        "sure",
+      )
+  );
+}
+
+/** Clear one-liners that need no LLM: "yes", "Yep!", "no sorry", "can't" ... */
+const STRICT_YES =
+  /^(y|yes|yeah|yea|ya|yep|yup|sure|ok|okay|ok sure|yes please|sure thing|absolutely|definitely|i can|i'?m in|count me in|on my way|omw|be there soon|deal)$/;
+const STRICT_NO =
+  /^(n|no|nope|nah|no sorry|sorry no|no thanks|no thank you|can'?t|cannot|i can'?t|i cannot|can'?t sorry|sorry can'?t|not today|pass)$/;
+
+export function strictReplyIntent(reply: string): "ACCEPT" | "DECLINE" | null {
+  const r = normalizeReply(reply).replace(/\?/g, "").trim();
+  if (STRICT_YES.test(r)) return "ACCEPT";
+  if (STRICT_NO.test(r)) return "DECLINE";
+  return null;
+}
+
+/** The keyword classifier from the architecture table (yes / no / can't / sure). */
+export function keywordReplyIntent(
+  reply: string,
+): Omit<ClassifiedReply, "source" | "llm"> {
+  const raw = reply.trim();
+  const r = normalizeReply(reply);
+  const strict = strictReplyIntent(reply);
+  if (strict)
+    return {
+      intent: strict,
+      condition: null,
+      question: null,
+      confidence: 0.95,
+    };
+
+  const yes = YES_WORDS.test(r);
+  const no = NO_WORDS.test(r);
+  const isQuestion = raw.endsWith("?") || QUESTION_START.test(r);
+  if (yes && !no && CONDITION_WORDS.test(r)) {
+    return {
+      intent: "CONDITIONAL",
+      condition: raw.slice(0, 120),
+      question: null,
+      confidence: 0.6,
+    };
+  }
+  if (isQuestion && !(yes && !no)) {
+    return {
+      intent: "QUESTION",
+      condition: null,
+      question: raw.slice(0, 200),
+      confidence: 0.6,
+    };
+  }
+  if (yes && !no)
+    return {
+      intent: "ACCEPT",
+      condition: null,
+      question: null,
+      confidence: 0.7,
+    };
+  if (no && !yes)
+    return {
+      intent: "DECLINE",
+      condition: null,
+      question: null,
+      confidence: 0.7,
+    };
+  return { intent: "UNKNOWN", condition: null, question: null, confidence: 0 };
+}
+
+/**
+ * Classifies a crew member's reply to an offer. Obvious yes/no answers skip the LLM.
+ * Never throws. Conservative about ACCEPT, because it books the shift: a model ACCEPT
+ * below ACCEPT_CONFIDENCE_THRESHOLD, or one the keywords read as a refusal, becomes
+ * UNKNOWN so the offer goes to CLARIFYING instead.
+ */
+export async function classifyReply(
+  input: ClassifyReplyInput,
+  options: { timeoutMs?: number; transport?: LlmTransport } = {},
+): Promise<ClassifiedReply> {
+  const strict = strictReplyIntent(input.reply);
+  if (strict)
+    return {
+      intent: strict,
+      condition: null,
+      question: null,
+      confidence: 1,
+      source: "keyword",
+    };
+
+  const result = await runTask(CLASSIFY_REPLY, input, options);
+  if (!result.ok) {
+    return {
+      ...keywordReplyIntent(input.reply),
+      source: "fallback",
+      llm: {
+        provider: result.provider,
+        model: result.model,
+        ms: result.ms,
+        error: result.error,
+        message: result.message,
+      },
+    };
+  }
+
+  const llm = { provider: result.provider, model: result.model, ms: result.ms };
+  const data = result.data;
+  if (data.intent === "ACCEPT") {
+    const refusal = NO_WORDS.test(normalizeReply(input.reply));
+    if (data.confidence < ACCEPT_CONFIDENCE_THRESHOLD || refusal) {
+      return {
+        intent: "UNKNOWN",
+        condition: null,
+        question: null,
+        confidence: data.confidence,
+        source: "llm",
+        llm,
+      };
+    }
+  }
+  return {
+    intent: data.intent,
+    condition: data.intent === "CONDITIONAL" ? data.condition : null,
+    question: data.intent === "QUESTION" ? data.question : null,
+    confidence: data.confidence,
+    source: "llm",
+    llm,
+  };
+}

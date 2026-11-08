@@ -54,7 +54,7 @@ Cut-line tasks (not counted in the totals above) add up to about 2.5h, which can
 - [x] 3.3 `server/llm/vultr.ts`: `openai` SDK adapter with `baseURL=https://api.vultrinference.com/v1`; list models and choose a default (wire it up when the key arrives) (15m)
 - [x] 3.4 `parseCallout`: free-text SMS → `{crewId, shiftId, reason}` with zod validation (25m)
 - [x] 3.5 `summarizePlan` + per-candidate rationale (25m)
-- [ ] 3.6 `composeOffer`: personalized offer text (15m)
+- [x] 3.6 `composeOffer`: personalized offer text (15m)
 - [ ] 3.7 `classifyReply`: accept / decline / conditional / question (20m)
 - [ ] 3.8 Keyword/regex fallbacks + timeout handling when the LLM is slow or returns bad JSON (15m)
 
