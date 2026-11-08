@@ -3,7 +3,7 @@ import "server-only";
 import { z } from "zod";
 
 import { ReplyIntent } from "@/server/generated/prisma/enums";
-import { formatRange } from "@/server/rules/time";
+import { addDays, formatRange, localDate } from "@/server/rules/time";
 
 // Provider-agnostic LLM layer. The LLM only does language: parseCallout, summarizePlan,
 // composeOffer, classifyReply. Rules decide; nothing here picks who works.
@@ -698,17 +698,136 @@ export const COMPOSE_OFFER: LlmTask<ComposeOfferInput, ComposeOfferOutput> = {
   system: [
     "You write one SMS from a coffee shop's scheduling assistant offering a shift to a crew member.",
     "Friendly and plain, under 300 characters, no emojis, no links.",
-    "Include the station and the time window. For EXTEND, ask them to stay later or start earlier on the shift they're already working; for CALL_IN, ask them to come in.",
+    "Include the station, and copy the time window exactly as given (same 24-hour times). For EXTEND, ask them to extend the shift they're already working to cover it; for CALL_IN, ask them to come in.",
     "If isOvertime is true, say the manager has approved overtime. Never mention pay amounts.",
     "End with: Reply YES or NO within <replyMinutes> min.",
     JSON_ONLY,
   ].join("\n"),
   user: (i) => JSON.stringify(i),
-  check: (_i, o) =>
-    /\bYES\b/.test(o.text) && /\bNO\b/.test(o.text)
-      ? null
-      : "offer must ask for YES or NO",
+  check: (i, o) => {
+    if (!/\bYES\b/.test(o.text) || !/\bNO\b/.test(o.text))
+      return "offer must ask for YES or NO";
+    // A wrong time would send someone to the wrong shift: the exact times must appear.
+    const times = i.windowLabel.match(/\b\d{2}:\d{2}\b/g) ?? [];
+    const missing = times.find((t) => !o.text.includes(t));
+    if (missing) return `offer must state the time ${missing}`;
+    if (
+      !new RegExp(`\\b${i.replyMinutes}\\s*(min|mins|minutes)\\b`, "i").test(
+        o.text,
+      )
+    )
+      return `offer must state the ${i.replyMinutes}-minute reply window`;
+    return null;
+  },
 };
+
+export interface ComposeOfferRequest {
+  firstName: string;
+  storeName: string;
+  stationName: string;
+  window: Window;
+  timezone: string;
+  /** For "today" / "tomorrow" wording. */
+  now: Date;
+  kind: "CALL_IN" | "EXTEND";
+  isOvertime: boolean;
+  replyMinutes: number;
+}
+
+export interface ComposedOffer {
+  text: string;
+  source: "llm" | "fallback";
+  llm: {
+    provider?: LlmProvider;
+    model?: string;
+    ms: number;
+    error?: TaskError;
+    message?: string;
+  };
+}
+
+/** "today 10:00-14:00", "tomorrow 05:30-10:00" or "Wed Nov 11 10:00-14:00", in store time. */
+export function offerWindowLabel(
+  window: Window,
+  now: Date,
+  timezone: string,
+): string {
+  const day = localDate(window.start, timezone);
+  const today = localDate(now, timezone);
+  const time = (at: Date) =>
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).format(at);
+  const when =
+    day === today
+      ? "today"
+      : day === addDays(today, 1)
+        ? "tomorrow"
+        : new Intl.DateTimeFormat("en-US", {
+            timeZone: timezone,
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+          })
+            .format(window.start)
+            .replace(",", "");
+  return `${when} ${time(window.start)}-${time(window.end)}`;
+}
+
+/** The fixed offer text used when the LLM is unavailable (always under 300 characters). */
+export function templateOffer(i: ComposeOfferInput): string {
+  const ask =
+    i.kind === "EXTEND"
+      ? `Can you extend your shift to cover ${i.stationName} ${i.windowLabel}?`
+      : `Can you come in for ${i.stationName} ${i.windowLabel}?`;
+  const overtime = i.isOvertime ? " Overtime is approved by the manager." : "";
+  return `Hi ${i.firstName}, it's ${i.storeName}. ${ask}${overtime} Reply YES or NO within ${i.replyMinutes} min.`;
+}
+
+/**
+ * Writes the shift offer SMS for one candidate. Never throws: falls back to the fixed
+ * template when the LLM fails or leaves out the exact times, YES/NO or the deadline.
+ */
+export async function composeOffer(
+  request: ComposeOfferRequest,
+  options: { timeoutMs?: number; transport?: LlmTransport } = {},
+): Promise<ComposedOffer> {
+  const input: ComposeOfferInput = {
+    firstName: request.firstName,
+    storeName: request.storeName,
+    stationName: request.stationName,
+    windowLabel: offerWindowLabel(
+      request.window,
+      request.now,
+      request.timezone,
+    ),
+    kind: request.kind,
+    isOvertime: request.isOvertime,
+    replyMinutes: request.replyMinutes,
+  };
+  const result = await runTask(COMPOSE_OFFER, input, options);
+  if (result.ok) {
+    return {
+      text: result.data.text,
+      source: "llm",
+      llm: { provider: result.provider, model: result.model, ms: result.ms },
+    };
+  }
+  return {
+    text: templateOffer(input),
+    source: "fallback",
+    llm: {
+      provider: result.provider,
+      model: result.model,
+      ms: result.ms,
+      error: result.error,
+      message: result.message,
+    },
+  };
+}
 
 // ---------------------------------------------------------------------------------
 // classifyReply: a reply to an offer -> accept / decline / conditional / question
