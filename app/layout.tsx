@@ -24,10 +24,9 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} min-h-screen antialiased`}
-      >
+    // The font variables go on <html>: that is where the base styles apply font-sans.
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body className="min-h-screen font-sans antialiased">
         <header className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur">
           <div className="mx-auto flex max-w-[1600px] flex-col gap-2 px-4 py-2 sm:flex-row sm:items-center sm:justify-between">
             <Link href="/board" className="flex items-center gap-2">

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { autofillWeek } from "@/server/autofill";
+import { createCrew, CrewError, updateCrew } from "@/server/crew";
 import { Jurisdiction } from "@/server/generated/prisma/enums";
 import {
   createShift,
@@ -126,4 +127,69 @@ export async function autofillWeekAction(
     console.error(err);
     return { ok: false, error: "Auto-fill failed." };
   }
+}
+
+const CrewSchema = z.object({
+  firstName: z.string().trim().min(1, "First name is required").max(50),
+  lastName: z.string().trim().min(1, "Last name is required").max(50),
+  phone: z
+    .string()
+    .regex(/^\+[1-9]\d{7,14}$/, "Phone must be E.164, e.g. +14035550117"),
+  birthdate: date,
+  hireDate: date,
+  isStudent: z.boolean(),
+  hourlyWage: z.number().min(0).max(200),
+  maxWeeklyHours: z.number().min(1).max(80).nullable(),
+  smsOptIn: z.boolean(),
+  active: z.boolean(),
+  stations: z.record(z.string(), z.enum(["TRAINEE", "CERTIFIED", "TRAINER"])),
+  certs: z.array(
+    z.object({
+      type: z.enum(["FOOD_HANDLER", "BAKER", "SUPERVISOR", "FIRST_AID"]),
+      issuedAt: date,
+      expiresAt: date.nullable(),
+    }),
+  ),
+  availability: z.array(
+    z.object({
+      weekday: z.number().int().min(0).max(6),
+      start: time,
+      end: time,
+    }),
+  ),
+  timeOff: z.array(
+    z.object({
+      startDate: date,
+      endDate: date,
+      reason: z.string().trim().max(120).nullable(),
+      status: z.enum(["REQUESTED", "APPROVED", "DENIED"]),
+    }),
+  ),
+});
+
+async function runCrew(fn: () => Promise<unknown>): Promise<ActionResult> {
+  try {
+    await fn();
+    revalidatePath("/crew");
+    revalidatePath("/schedule");
+    revalidatePath("/board");
+    return { ok: true };
+  } catch (err) {
+    if (err instanceof CrewError) return { ok: false, error: err.message };
+    if (err instanceof z.ZodError)
+      return { ok: false, error: z.prettifyError(err) };
+    console.error(err);
+    return {
+      ok: false,
+      error: "Something went wrong saving that crew member.",
+    };
+  }
+}
+
+export async function updateCrewAction(crewId: unknown, input: unknown) {
+  return runCrew(() => updateCrew(id.parse(crewId), CrewSchema.parse(input)));
+}
+
+export async function createCrewAction(input: unknown) {
+  return runCrew(() => createCrew(CrewSchema.parse(input)));
 }

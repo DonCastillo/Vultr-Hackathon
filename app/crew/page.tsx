@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 
-import { getRosterView } from "@/server/views";
+import { AddCrewButton, EditCrewButton } from "@/components/crew/crew-buttons";
+import { getCrewForEdit } from "@/server/crew";
+import { getRosterView, getSettingsView } from "@/server/views";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Crew · CrewShift" };
@@ -18,15 +20,30 @@ const CERT: Record<string, string> = {
 };
 
 export default async function CrewPage() {
-  const view = await getRosterView();
+  const [view, editable, settings] = await Promise.all([
+    getRosterView(),
+    getCrewForEdit(),
+    getSettingsView(),
+  ]);
+  const stations = settings.stations.map(({ id, shortCode, name, color }) => ({
+    id,
+    shortCode,
+    name,
+    color,
+  }));
+  const editById = new Map(editable.map((e) => [e.id, e.input]));
+  const inactive = editable.filter((e) => !e.input.active);
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h1 className="text-xl font-semibold">Crew roster</h1>
-        <p className="text-sm text-muted-foreground">
-          {view.crew.length} active crew · youth rules apply under{" "}
-          {view.youthUnderAge}
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h1 className="text-xl font-semibold">Crew roster</h1>
+          <p className="text-sm text-muted-foreground">
+            {view.crew.length} active crew · youth rules apply under{" "}
+            {view.youthUnderAge}
+          </p>
+        </div>
+        <AddCrewButton stations={stations} />
       </div>
 
       <div className="overflow-x-auto rounded-lg border bg-card">
@@ -39,6 +56,9 @@ export default async function CrewPage() {
               <th className="px-3 py-2">Availability</th>
               <th className="px-3 py-2">Time off</th>
               <th className="px-3 py-2 text-right">Reliability</th>
+              <th className="px-3 py-2">
+                <span className="sr-only">Edit</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -130,11 +150,43 @@ export default async function CrewPage() {
                 <td className="px-3 py-2 text-right tabular-nums">
                   {Math.round(c.reliability * 100)}%
                 </td>
+                <td className="px-3 py-2 text-right">
+                  {editById.get(c.id) && (
+                    <EditCrewButton
+                      crewId={c.id}
+                      initial={editById.get(c.id)!}
+                      stations={stations}
+                    />
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {inactive.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold text-muted-foreground">
+            Inactive crew
+          </h2>
+          <ul className="flex flex-wrap gap-2">
+            {inactive.map((e) => (
+              <li
+                key={e.id}
+                className="flex items-center gap-2 rounded-md border bg-card px-2 py-1 text-sm"
+              >
+                {e.input.firstName} {e.input.lastName}
+                <EditCrewButton
+                  crewId={e.id}
+                  initial={e.input}
+                  stations={stations}
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }
