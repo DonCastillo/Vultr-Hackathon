@@ -71,7 +71,7 @@ Dayparts: Overnight (11pm–5am), **Morning Rush (5:30–10am, peak)**, Midday (
 - `server/sms/{index,sim,twilio}.ts`, `server/outreach.ts` (state machine), `worker/index.ts`
 - `app/(app)/schedule/week`, `app/(app)/schedule/day/[date]`, `app/(app)/callouts/[id]`, `app/(app)/crew`, `app/sim`, `app/settings`
 - API: `POST /api/callouts`, `POST /api/callouts/[id]/apply`, `POST /api/sms/inbound`, `GET /api/callouts/[id]/events` (SSE)
-- `prisma/seed.ts`: the standalone Maple & Mug store (Calgary, Alberta), ~20 crew (students, trainees, an overnight baker, supervisors), a full week scheduled. Demo scenario: **the 5:30am drive-thru headset person texts in sick at 4:40am.**
+- `prisma/seed.ts`: the standalone Maple & Mug store (Calgary, Alberta), 31 crew (students, 14-year-olds, trainees, overnight bakers, supervisors), a full Mon-Sun week scheduled around the **demo day = the next weekday after seeding** (re-run `pnpm db:seed` before demoing). Demo scenario: **the 5:30am drive-thru headset person (Kayla, headset 5:30-10 then Beverage 10-14) texts in sick at 4:40am.**
 - `docker-compose.yml`, `Dockerfile`, `Caddyfile`, `README.md` (Vultr services, architecture diagram, setup, use case)
 
 ## Build order (time-boxed)
@@ -95,6 +95,6 @@ Buffer: about 6h. **Cut-line if late:** drop auto-fill, labour %, Twilio and con
 
 ## Verification
 - vitest: untrained, OT under the AB 8h-day-or-44h-week rule vs. ON 44h and BC daily rules, youth school-day limit, clopen, PTO, overlap, expired food-handler cert; coverage shortfall; solver picks the lowest-priority donor; ranking order
-- Local E2E on the seed: day board for Morning Rush (green), mark the 5:30 headset crew sick (Drive-Thru turns red), get a recovery plan (move Lobby→headset, extend the overnight baker on Oven, call in a Beverage replacement), apply, start outreach. Candidate 1 times out, 2 declines, 3 accepts. Check the board is green, moved crew notified, the timeline complete.
+- Local E2E on the seed: day board for Morning Rush (green), mark the 5:30 headset crew sick (Drive-Thru turns red), get a recovery plan (Plan A: move Aisha Lobby→headset 5:30-10, Lobby left short; Plan B for Beverage 10-14: Ben, then Noah, with Sofia flagged OT for an extension), apply, start outreach. Candidate 1 times out, 2 declines, 3 accepts. Check the board is green, moved crew notified, the timeline complete.
 - Race test: two sim phones accept at once; only one wins
 - Same flow on the public Vultr URL

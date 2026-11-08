@@ -1,17 +1,16 @@
-// Task 1.5: ~20 crew with station training, certs, weekly availability and time off.
+// Tasks 1.5/1.6: 31 crew with station training, certs, weekly availability and time off.
 // All names and phone numbers are fictional (555-01xx numbers are reserved for fiction).
 //
-// The roster is built around the demo morning (shifts come in task 1.6):
-// - Kayla Nguyen is the 5:30am Drive-Thru headset person who texts in sick.
+// The roster is built around the demo morning (the demo-day lineup is in shifts.ts):
+// - Kayla Nguyen works headset 5:30-10 then Beverage 10-14, and texts in sick.
 // - Aisha Khan works Lobby but is certified on headset: the Plan A rebalance move.
-// - Tomas Ortega, the overnight baker, can extend onto Oven.
-// - Ben Carter is the top Plan B pick for Beverage (certified, available, no OT).
-// - Other Beverage-trained crew get filtered or ranked down for a visible reason:
-//   Sofia (near 44h -> OT), Noah (closed last night -> rest gap), Maya and Liam
-//   (under 15 -> school-day youth limits), Wei (weekly hours cap), Hannah (trainee
-//   at rush), Chloe (student, not available mornings on school days).
-// - Olivia's food-handler cert is expired (no Sandwich/Oven), Ryan opted out of SMS,
-//   and Diego has approved time off.
+// - Ben Carter is off that day: the top Plan B call-in for Beverage 10-14.
+// - Noah Fischer closed the night before: rested enough for 10:00, not for 5:30.
+// - Sofia Martins works Beverage 5:30-10: extending her to 14:00 is daily overtime.
+// - Others are filtered out for a visible reason: Maya and Liam (under 15, school
+//   day), Chloe and Ethan (students, not available on school mornings), Wei (only
+//   Tue/Thu/Sat), Hannah (Beverage trainee), Diego (approved time off).
+// - Olivia's food-handler cert is expired (no Sandwich/Oven), Ryan opted out of SMS.
 
 import type {
   CertType,
@@ -147,8 +146,8 @@ export const CREW: CrewSeed[] = [
     hourlyWage: 17.5,
     hireDate: "2020-05-04",
     reliability: 0.9,
-    stations: { "DT-OT": TR, "DT-WIN": C, CTR: C },
-    availability: [{ days: ALL, start: "05:00", end: "13:30" }],
+    stations: { "DT-OT": TR, "DT-WIN": C, BEV: C, CTR: C },
+    availability: [{ days: ALL, start: "05:00", end: "14:00" }],
   },
   {
     firstName: "Aisha",
@@ -159,7 +158,7 @@ export const CREW: CrewSeed[] = [
     hireDate: "2022-08-22",
     reliability: 0.86,
     stations: { LOBBY: C, "DT-OT": C, CTR: C, "DT-WIN": T },
-    availability: [{ days: WEEKDAYS, start: "05:00", end: "13:00" }],
+    availability: [{ days: WEEKDAYS, start: "05:00", end: "14:00" }],
   },
   {
     firstName: "Ben",
@@ -191,7 +190,7 @@ export const CREW: CrewSeed[] = [
     hourlyWage: 16,
     hireDate: "2023-05-15",
     reliability: 0.8,
-    stations: { BEV: C, "DT-WIN": C, LOBBY: C },
+    stations: { "DT-OT": C, BEV: C, "DT-WIN": C, LOBBY: C },
     availability: [{ days: ALL, start: "05:00", end: "23:30" }],
   },
   {
@@ -205,7 +204,7 @@ export const CREW: CrewSeed[] = [
     stations: { SAND: C, OVEN: C, CTR: C },
     // Expired: not eligible for Sandwich or Oven until renewed.
     certs: { FOOD_HANDLER: ["2021-10-31", "2026-10-31"] },
-    availability: [{ days: [1, 2, 3, 4, 5, 6], start: "06:00", end: "14:00" }],
+    availability: [{ days: [1, 2, 3, 4, 5, 6], start: "05:00", end: "14:00" }],
   },
   {
     firstName: "Jamal",
@@ -217,7 +216,7 @@ export const CREW: CrewSeed[] = [
     reliability: 0.91,
     stations: { SAND: TR, OVEN: C, LOBBY: C },
     certs: { FOOD_HANDLER: ["2022-11-20", "2027-11-20"] },
-    availability: [{ days: WEEKDAYS, start: "05:00", end: "13:30" }],
+    availability: [{ days: WEEKDAYS, start: "05:00", end: "14:00" }],
   },
   {
     firstName: "Hannah",
@@ -347,6 +346,126 @@ export const CREW: CrewSeed[] = [
       { days: WEEKEND, start: "08:00", end: "16:00" },
     ],
   },
+
+  // --- Added in 1.6 so the coverage template can be staffed all week -------------
+  {
+    firstName: "Omar",
+    lastName: "Farouk",
+    phone: "+14035550131",
+    birthdate: "1997-08-14",
+    hourlyWage: 16.5,
+    hireDate: "2022-10-03",
+    reliability: 0.89,
+    stations: { "DT-OT": C, "DT-WIN": C, CTR: C },
+    availability: [{ days: ALL, start: "05:00", end: "14:00" }],
+  },
+  {
+    firstName: "Zoe",
+    lastName: "Laurent",
+    phone: "+14035550132",
+    birthdate: "2000-02-29",
+    hourlyWage: 16,
+    hireDate: "2023-09-18",
+    reliability: 0.87,
+    stations: { "DT-WIN": C, BEV: C, CTR: C },
+    availability: [{ days: ALL, start: "05:00", end: "14:00" }],
+  },
+  {
+    firstName: "Lucas",
+    lastName: "Bennett",
+    phone: "+14035550133",
+    birthdate: "1993-05-07",
+    hourlyWage: 17.25,
+    hireDate: "2021-11-29",
+    reliability: 0.9,
+    stations: { OVEN: C, SAND: C, LOBBY: C },
+    certs: { FOOD_HANDLER: ["2023-12-01", "2028-12-01"] },
+    availability: [{ days: ALL, start: "05:00", end: "14:00" }],
+  },
+  {
+    firstName: "Isabel",
+    lastName: "Cruz",
+    phone: "+14035550134",
+    birthdate: "1989-10-21",
+    hourlyWage: 16.25,
+    hireDate: "2024-02-12",
+    reliability: 0.88,
+    maxWeeklyHours: 25,
+    // Rush-only barista: done by 10:30 on most days.
+    stations: { BEV: C, CTR: C, LOBBY: C },
+    availability: [{ days: ALL, start: "05:00", end: "10:30" }],
+  },
+  {
+    firstName: "Rosa",
+    lastName: "Delgado",
+    phone: "+14035550135",
+    birthdate: "1987-12-12",
+    hourlyWage: 17,
+    hireDate: "2020-08-10",
+    reliability: 0.91,
+    stations: { SUPV: C, "DT-WIN": C, "DT-OT": C, CTR: C, LOBBY: C },
+    certs: {
+      SUPERVISOR: ["2023-09-01", null],
+      FOOD_HANDLER: ["2023-09-01", "2028-09-01"],
+    },
+    availability: [{ days: ALL, start: "13:00", end: "23:30" }],
+  },
+  {
+    firstName: "Kenji",
+    lastName: "Watanabe",
+    phone: "+14035550136",
+    birthdate: "1999-03-03",
+    hourlyWage: 16.75,
+    hireDate: "2022-05-30",
+    reliability: 0.86,
+    stations: { BEV: C, CTR: C, "DT-WIN": C },
+    availability: [{ days: ALL, start: "13:00", end: "23:30" }],
+  },
+  {
+    firstName: "Ava",
+    lastName: "Mitchell",
+    phone: "+14035550137",
+    birthdate: "2001-06-17",
+    hourlyWage: 15.75,
+    hireDate: "2024-10-07",
+    reliability: 0.84,
+    stations: { LOBBY: C, CTR: C, "DT-OT": C },
+    availability: [{ days: ALL, start: "13:00", end: "23:30" }],
+  },
+  {
+    firstName: "Nadia",
+    lastName: "Rahman",
+    phone: "+14035550138",
+    birthdate: "1995-09-26",
+    hourlyWage: 16.75,
+    hireDate: "2023-01-16",
+    reliability: 0.89,
+    stations: { OVEN: C, SAND: C, LOBBY: C },
+    certs: { FOOD_HANDLER: ["2023-01-10", "2028-01-10"] },
+    availability: [{ days: ALL, start: "05:00", end: "14:00" }],
+  },
+  {
+    firstName: "Theo",
+    lastName: "Park",
+    phone: "+14035550139",
+    birthdate: "1998-11-30",
+    hourlyWage: 16,
+    hireDate: "2024-04-22",
+    reliability: 0.85,
+    stations: { LOBBY: C, BEV: C, "DT-WIN": C },
+    availability: [{ days: ALL, start: "13:00", end: "23:30" }],
+  },
+  {
+    firstName: "Leah",
+    lastName: "Morgan",
+    phone: "+14035550140",
+    birthdate: "1996-01-08",
+    hourlyWage: 16.25,
+    hireDate: "2023-11-06",
+    reliability: 0.87,
+    stations: { LOBBY: C, CTR: C, "DT-OT": C, "DT-WIN": C },
+    availability: [{ days: ALL, start: "13:00", end: "23:30" }],
+  },
 ];
 
 export async function seedCrew(
@@ -430,6 +549,7 @@ export async function seedCrew(
 
   return {
     crewIds,
+    timeOff,
     counts: {
       crew: CREW.length,
       crewStations,

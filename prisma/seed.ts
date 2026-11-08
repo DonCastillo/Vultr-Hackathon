@@ -6,6 +6,7 @@ import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../server/generated/prisma/client";
 import { seedCrew } from "./seed/crew";
+import { seedShifts } from "./seed/shifts";
 import { seedStore, TIMEZONE } from "./seed/store";
 import { todayIn, zoned } from "./seed/time";
 
@@ -50,6 +51,23 @@ async function main() {
 
   const crew = await seedCrew(db, store.id, store.timezone, stations);
   console.log("Seeded crew:", crew.counts);
+
+  const shifts = await seedShifts(
+    db,
+    store.id,
+    store.timezone,
+    stations,
+    crew.crewIds,
+    crew.timeOff,
+  );
+  console.log(
+    `Seeded shifts ${shifts.days[0]}..${shifts.days[1]}, demo day ${shifts.demoDay}:`,
+    shifts.counts,
+  );
+  for (const w of shifts.pinWarnings)
+    console.warn(`  demo pin breaks a rule: ${w}`);
+  if (shifts.gaps.length)
+    console.log(`  coverage gaps (${shifts.gaps.length}):`, shifts.gaps);
 }
 
 main()

@@ -26,7 +26,7 @@ export type StationCode =
 // Priority: lower = more critical. The rebalance solver pulls donors from the highest
 // number first (Lobby). Supervisors are protected by the supervisor-on-floor rule rather
 // than by priority; the overnight baker only works overnight.
-const STATIONS = [
+export const STATIONS = [
   {
     shortCode: "DT-OT",
     name: "Drive-Thru Order Taker",
@@ -114,7 +114,7 @@ export const DAYPARTS: Record<Daypart, { start: string; end: string }> = {
 
 // Minimum headcount per station per daypart, every day of the week (weekday = null).
 // Stations missing from a daypart need nobody then.
-const COVERAGE: Record<Daypart, Partial<Record<StationCode, number>>> = {
+export const COVERAGE: Record<Daypart, Partial<Record<StationCode, number>>> = {
   OVERNIGHT: { BAKER: 1 },
   MORNING_RUSH: {
     "DT-OT": 2,
@@ -144,6 +144,13 @@ const COVERAGE: Record<Daypart, Partial<Record<StationCode, number>>> = {
 // winter break.
 const NO_SCHOOL = new Set(["2026-10-12", "2026-11-11"]);
 const WINTER_BREAK = { from: "2026-12-19", to: "2027-01-04" };
+
+/** Mon-Fri, minus holidays and winter break. */
+export function isSchoolDay(ymd: string): boolean {
+  const wd = weekday(ymd);
+  const inBreak = ymd >= WINTER_BREAK.from && ymd <= WINTER_BREAK.to;
+  return wd >= 1 && wd <= 5 && !NO_SCHOOL.has(ymd) && !inBreak;
+}
 
 export async function seedStore(db: PrismaClient) {
   const store = await db.store.create({
@@ -202,9 +209,7 @@ export async function seedStore(db: PrismaClient) {
   const schoolDays: string[] = [];
   for (let i = -28; i <= 56; i++) {
     const d = addDays(today, i);
-    const wd = weekday(d);
-    const inBreak = d >= WINTER_BREAK.from && d <= WINTER_BREAK.to;
-    if (wd >= 1 && wd <= 5 && !NO_SCHOOL.has(d) && !inBreak) schoolDays.push(d);
+    if (isSchoolDay(d)) schoolDays.push(d);
   }
   await db.schoolDay.createMany({
     data: schoolDays.map((d) => ({ storeId: store.id, date: date(d) })),
