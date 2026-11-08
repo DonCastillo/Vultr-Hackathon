@@ -3,6 +3,7 @@ import "server-only";
 import { z } from "zod";
 
 import { ReplyIntent } from "@/server/generated/prisma/enums";
+import { formatRange } from "@/server/rules/time";
 
 // Provider-agnostic LLM layer. The LLM only does language: parseCallout, summarizePlan,
 // composeOffer, classifyReply. Rules decide; nothing here picks who works.
@@ -449,8 +450,11 @@ export interface SummarizePlanInput {
   moves: string[];
   remaining: string[];
   candidates: {
-    crewId: string;
+    /** Short per-entry id (c1, c2...): the same person can be a candidate for two gaps. */
+    id: string;
     name: string;
+    /** The gap this candidate would fill, e.g. "Beverage/Barista Mon 10:00-14:00". */
+    forGap: string;
     kind: string;
     isOvertime: boolean;
     reasons: string[];
@@ -460,7 +464,7 @@ export interface SummarizePlanInput {
 export const SummarizePlanSchema = z.object({
   summary: z.string().max(700),
   rationales: z.array(
-    z.object({ crewId: z.string(), rationale: z.string().max(160) }),
+    z.object({ id: z.string(), rationale: z.string().max(160) }),
   ),
 });
 export type SummarizePlanOutput = z.infer<typeof SummarizePlanSchema>;
@@ -474,7 +478,7 @@ export const SUMMARIZE_PLAN: LlmTask<SummarizePlanInput, SummarizePlanOutput> =
       "You explain a shift recovery plan to a busy coffee shop manager early in the morning.",
       "Use only the facts given. Never add people, times, stations or rules that aren't listed.",
       "summary: 2 to 4 short sentences. Say what the call-out broke, the proposed station moves, who will be texted first and why, and what stays uncovered. Mention overtime if a candidate needs it.",
-      "rationales: one short line per candidate, in the given order, using their listed reasons.",
+      "rationales: one short line per candidate id, in the given order, using their listed reasons.",
       "Write plainly, without jargon or lists.",
       JSON_ONLY,
     ].join("\n"),
@@ -492,20 +496,179 @@ export const SUMMARIZE_PLAN: LlmTask<SummarizePlanInput, SummarizePlanOutput> =
         ...(i.candidates.length
           ? i.candidates.map(
               (c, n) =>
-                `${n + 1}. ${c.name} [${c.crewId}] ${c.kind}${c.isOvertime ? " (overtime, needs approval)" : ""}: ${c.reasons.join("; ")}`,
+                `${n + 1}. [${c.id}] ${c.name}, ${c.kind} for ${c.forGap}${c.isOvertime ? " (overtime, needs approval)" : ""}: ${c.reasons.join("; ")}`,
             )
           : ["- (none)"]),
       ].join("\n"),
     check: (i, o) => {
       const unknown = o.rationales.find(
-        (r) => !i.candidates.some((c) => c.crewId === r.crewId),
+        (r) => !i.candidates.some((c) => c.id === r.id),
       );
-      return unknown ? `rationale for unknown crew "${unknown.crewId}"` : null;
+      return unknown ? `rationale for unknown candidate "${unknown.id}"` : null;
     },
   };
 
 function lines(items: string[]): string[] {
   return items.length ? items.map((x) => `- ${x}`) : ["- (none)"];
+}
+
+interface Window {
+  start: Date;
+  end: Date;
+}
+
+/** The rules engine's results for one call-out, as summarizePlan needs them. */
+export interface PlanFacts {
+  storeName: string;
+  timezone: string;
+  /** stationId -> display name, crewId -> first name. */
+  stationNames: Record<string, string>;
+  crewNames: Record<string, string>;
+  callOut: { crewId: string; shift: Window; reason: string | null };
+  /** Gaps the call-out causes (computeImpact). */
+  gaps: (Window & {
+    stationId: string;
+    required: number;
+    scheduled: number;
+    missing: number;
+  })[];
+  /** Plan A moves (rebalance). */
+  moves: (Window & {
+    crewId: string;
+    fromStationId: string;
+    toStationId: string;
+  })[];
+  /** Gaps left after the moves (rebalance.remainingShortfall). */
+  remaining: (Window & { stationId: string; missing: number })[];
+  /** Plan B candidates across the remaining gaps, best first within each gap. */
+  candidates: {
+    crewId: string;
+    stationId: string;
+    window: Window;
+    kind: "CALL_IN" | "EXTEND";
+    isOvertime: boolean;
+    reasons: string[];
+  }[];
+}
+
+export interface PlanSummary {
+  summary: string;
+  /** One rationale per entry in `facts.candidates`, same order. */
+  rationales: string[];
+  source: "llm" | "fallback";
+  llm: {
+    provider?: LlmProvider;
+    model?: string;
+    ms: number;
+    error?: TaskError;
+    message?: string;
+  };
+}
+
+/** Plain-language lines for the facts, shared by the prompt and the template fallback. */
+function planLines(f: PlanFacts) {
+  const range = (w: Window) => formatRange(w, f.timezone);
+  const station = (id: string) => f.stationNames[id] ?? id;
+  const crew = (id: string) => f.crewNames[id] ?? id;
+  return {
+    callOut: `${crew(f.callOut.crewId)}, ${range(f.callOut.shift)}${f.callOut.reason ? ` (${f.callOut.reason})` : ""}`,
+    gaps: f.gaps.map(
+      (g) =>
+        `${station(g.stationId)} ${range(g)}: ${g.scheduled} of ${g.required} scheduled (short ${g.missing})`,
+    ),
+    moves: f.moves.map(
+      (m) =>
+        `${crew(m.crewId)}: ${station(m.fromStationId)} -> ${station(m.toStationId)} ${range(m)}`,
+    ),
+    remaining: f.remaining.map(
+      (g) => `${station(g.stationId)} ${range(g)} (short ${g.missing})`,
+    ),
+    candidateGap: (c: PlanFacts["candidates"][number]) =>
+      `${station(c.stationId)} ${range(c.window)}`,
+    crew,
+  };
+}
+
+/** The template used when the LLM is unavailable: the same facts, in fixed sentences. */
+export function templatePlanSummary(f: PlanFacts): {
+  summary: string;
+  rationales: string[];
+} {
+  const l = planLines(f);
+  const parts = [`${l.callOut} called out.`];
+  if (l.gaps.length) parts.push(`Short: ${l.gaps.join("; ")}.`);
+  if (l.moves.length) parts.push(`Move: ${l.moves.join("; ")}.`);
+  const first = f.candidates[0];
+  if (first) {
+    const how = first.kind === "EXTEND" ? "extend" : "call in";
+    parts.push(
+      `Text first: ${l.crew(first.crewId)} (${how}) for ${l.candidateGap(first)}${first.isOvertime ? ", overtime needs approval" : ""}.`,
+    );
+  }
+  parts.push(
+    l.remaining.length
+      ? `Still uncovered: ${l.remaining.join("; ")}.`
+      : "Fully covered after the moves.",
+  );
+  return {
+    summary: parts.join(" "),
+    rationales: f.candidates.map((c) => c.reasons.join("; ")),
+  };
+}
+
+/**
+ * Turns the recovery plan into a short manager-facing summary plus one rationale per
+ * candidate. Never throws: falls back to `templatePlanSummary` when the LLM fails, and
+ * fills any rationale the model skipped from the candidate's rule reasons.
+ */
+export async function summarizePlan(
+  facts: PlanFacts,
+  options: { timeoutMs?: number; transport?: LlmTransport } = {},
+): Promise<PlanSummary> {
+  const l = planLines(facts);
+  const result = await runTask(
+    SUMMARIZE_PLAN,
+    {
+      storeName: facts.storeName,
+      callOut: l.callOut,
+      gaps: l.gaps,
+      moves: l.moves,
+      remaining: l.remaining,
+      candidates: facts.candidates.map((c, i) => ({
+        id: `c${i + 1}`,
+        name: l.crew(c.crewId),
+        forGap: l.candidateGap(c),
+        kind: c.kind,
+        isOvertime: c.isOvertime,
+        reasons: c.reasons,
+      })),
+    },
+    options,
+  );
+
+  const template = templatePlanSummary(facts);
+  if (!result.ok) {
+    return {
+      ...template,
+      source: "fallback",
+      llm: {
+        provider: result.provider,
+        model: result.model,
+        ms: result.ms,
+        error: result.error,
+        message: result.message,
+      },
+    };
+  }
+  const byId = new Map(result.data.rationales.map((r) => [r.id, r.rationale]));
+  return {
+    summary: result.data.summary,
+    rationales: facts.candidates.map(
+      (_, i) => byId.get(`c${i + 1}`) ?? template.rationales[i],
+    ),
+    source: "llm",
+    llm: { provider: result.provider, model: result.model, ms: result.ms },
+  };
 }
 
 // ---------------------------------------------------------------------------------

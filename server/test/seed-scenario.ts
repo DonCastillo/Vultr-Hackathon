@@ -131,3 +131,62 @@ export function seedScenario(today = SEED_TODAY) {
     ],
   };
 }
+
+/** Runs Kayla's demo call-out through impact, Plan A and Plan B on the seed data. */
+export async function demoCallout(s = seedScenario()) {
+  const { computeImpact } = await import("@/server/rules/coverage");
+  const { rebalance } = await import("@/server/solver/rebalance");
+  const { rankCandidates } = await import("@/server/rank");
+  const { localDate } = await import("@/server/rules/time");
+  const { youthRules } = await import("@/server/rules/youth");
+
+  const tz = s.timezone;
+  const day = s.plan.demoDay;
+  const kaylaShift = s.shifts.find(
+    (sh) => sh.crewId === "Kayla" && localDate(sh.start, tz) === day,
+  )!;
+  const coverage = {
+    date: day,
+    timezone: tz,
+    stations: s.stations,
+    rules: s.coverageRules,
+    assignments: s.assignments,
+    openTime: OPEN_TIME,
+    closeTime: CLOSE_TIME,
+  };
+  const impact = computeImpact(coverage, [kaylaShift.id]);
+  const planA = rebalance({
+    coverage,
+    removedShiftIds: [kaylaShift.id],
+    crew: s.crew,
+    rushWindows: s.rushWindows,
+    youthUnderAge: s.config.youthUnderAge,
+  });
+  const rules = {
+    timezone: tz,
+    minRestHours: s.config.minRestHours,
+    maxConsecutiveDays: s.config.maxConsecutiveDays,
+    overtime: {
+      method: s.preset.overtimeMethod,
+      dailyOtHours: s.config.dailyOtHours,
+      weeklyOtHours: s.config.weeklyOtHours,
+    },
+    youth: youthRules(s.preset, s.config),
+    rushWindows: s.rushWindows,
+  };
+  const rankings = planA.remainingShortfall.map((gap) => ({
+    gap,
+    result: rankCandidates({
+      stationId: gap.stationId,
+      window: gap,
+      stations: s.stations,
+      crew: s.crew,
+      shifts: s.shifts.filter((sh) => sh.id !== kaylaShift.id),
+      assignments: s.assignments.filter((a) => a.shiftId !== kaylaShift.id),
+      schoolDays: s.schoolDays,
+      rules,
+      excludeCrewIds: ["Kayla"],
+    }),
+  }));
+  return { s, kaylaShift, impact, planA, rankings };
+}

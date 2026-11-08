@@ -215,7 +215,7 @@ describe("runTask", () => {
 });
 
 describe("task definitions", () => {
-  it("summarizePlan lists facts and rejects rationales for unknown crew", async () => {
+  it("summarizePlan lists facts and rejects rationales for unknown candidates", async () => {
     const input = {
       storeName: "Maple & Mug Coffee Co.",
       callOut: "Kayla, Mon 05:30-14:00",
@@ -227,15 +227,17 @@ describe("task definitions", () => {
       remaining: ["Beverage Mon 10:00-14:00", "Lobby Mon 05:30-10:00"],
       candidates: [
         {
-          crewId: "ben",
+          id: "c1",
           name: "Ben",
+          forGap: "Beverage Mon 10:00-14:00",
           kind: "CALL_IN",
           isOvertime: false,
           reasons: ["Certified on Beverage"],
         },
         {
-          crewId: "sofia",
+          id: "c2",
           name: "Sofia",
+          forGap: "Beverage Mon 10:00-14:00",
           kind: "EXTEND",
           isOvertime: true,
           reasons: ["Trainer on Beverage"],
@@ -246,8 +248,8 @@ describe("task definitions", () => {
       JSON.stringify({
         summary: "x",
         rationales: [
-          { crewId: "ben", rationale: "y" },
-          { crewId: "zed", rationale: "z" },
+          { id: "c1", rationale: "y" },
+          { id: "c9", rationale: "z" },
         ],
       }),
     );
@@ -255,10 +257,10 @@ describe("task definitions", () => {
     expect(r).toMatchObject({
       ok: false,
       error: "CHECK",
-      message: 'rationale for unknown crew "zed"',
+      message: 'rationale for unknown candidate "c9"',
     });
     expect(t.requests[0].user).toContain(
-      "2. Sofia [sofia] EXTEND (overtime, needs approval): Trainer on Beverage",
+      "2. [c2] Sofia, EXTEND for Beverage Mon 10:00-14:00 (overtime, needs approval): Trainer on Beverage",
     );
     expect(t.requests[0].user).toContain(
       "- Aisha: Lobby -> Drive-Thru Order Taker Mon 05:30-10:00",
