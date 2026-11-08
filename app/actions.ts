@@ -5,6 +5,13 @@ import { z } from "zod";
 
 import { autofillWeek } from "@/server/autofill";
 import {
+  approveAndStartOutreach,
+  createCallOut,
+  expireOffers,
+  handleInboundSms,
+  OutreachError,
+} from "@/server/outreach";
+import {
   CoverageTemplateError,
   saveCoverageTemplate,
 } from "@/server/coverage-template";
@@ -242,4 +249,77 @@ export async function saveCoverageTemplateAction(
       error: "Something went wrong saving the coverage template.",
     };
   }
+}
+
+// ---------------------------------------------------------------------------------
+// Call-outs and the phone simulator (phase 5)
+// ---------------------------------------------------------------------------------
+
+function revalidateCallouts() {
+  revalidatePath("/callouts", "layout");
+  revalidatePath("/sim");
+  revalidatePath("/board");
+  revalidatePath("/schedule");
+}
+
+async function runOutreach<T>(
+  fn: () => Promise<T>,
+): Promise<{ ok: true; value: T } | { ok: false; error: string }> {
+  try {
+    const value = await fn();
+    revalidateCallouts();
+    return { ok: true, value };
+  } catch (err) {
+    if (err instanceof OutreachError) return { ok: false, error: err.message };
+    if (err instanceof z.ZodError)
+      return { ok: false, error: z.prettifyError(err) };
+    console.error(err);
+    return { ok: false, error: "Something went wrong." };
+  }
+}
+
+/** "Mark called out" from the schedule: the manager records the call-out. */
+export async function createCallOutAction(shiftId: unknown, reason: unknown) {
+  return runOutreach(() =>
+    createCallOut({
+      shiftId: id.parse(shiftId),
+      source: "MANAGER",
+      reason:
+        z
+          .string()
+          .trim()
+          .max(80)
+          .nullable()
+          .parse(reason ?? null) || null,
+    }),
+  );
+}
+
+export async function approveOutreachAction(
+  callOutId: unknown,
+  otApproved: unknown,
+) {
+  return runOutreach(() =>
+    approveAndStartOutreach(id.parse(callOutId), z.boolean().parse(otApproved)),
+  );
+}
+
+/** A text typed into a simulated crew phone on /sim. */
+export async function simSendAction(phone: unknown, body: unknown) {
+  return runOutreach(() =>
+    handleInboundSms(
+      z
+        .string()
+        .regex(/^\+\d{8,15}$/)
+        .parse(phone),
+      z.string().trim().min(1, "Type a message").max(480).parse(body),
+    ),
+  );
+}
+
+/** Expires overdue offers; pages poll this so the demo works even without the worker. */
+export async function tickAction() {
+  const expired = await expireOffers();
+  if (expired > 0) revalidateCallouts();
+  return expired;
 }

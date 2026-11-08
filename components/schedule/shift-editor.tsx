@@ -1,8 +1,10 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import {
+  createCallOutAction,
   createShiftAction,
   deleteShiftAction,
   updateShiftAction,
@@ -102,6 +104,22 @@ export function ShiftEditor({
         ? await updateShiftAction(card.id, input)
         : await createShiftAction(input);
       if (r.ok) onClose();
+      else setError(r.error);
+    });
+  };
+
+  const router = useRouter();
+  const callOut = () => {
+    if (!card) return;
+    const reason = window.prompt(
+      `Mark this shift called out? Reason (optional):`,
+      "sick",
+    );
+    if (reason === null) return;
+    setError(null);
+    startTransition(async () => {
+      const r = await createCallOutAction(card.id, reason);
+      if (r.ok) router.push(`/callouts/${r.value}`);
       else setError(r.error);
     });
   };
@@ -267,14 +285,26 @@ export function ShiftEditor({
 
         <DialogFooter className="gap-2 sm:justify-between">
           {card ? (
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={remove}
-              disabled={pending}
-            >
-              Delete
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={remove}
+                disabled={pending}
+              >
+                Delete
+              </Button>
+              {card.status === "SCHEDULED" && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={callOut}
+                  disabled={pending}
+                >
+                  Mark called out
+                </Button>
+              )}
+            </div>
           ) : (
             <span />
           )}

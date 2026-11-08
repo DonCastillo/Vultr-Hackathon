@@ -8,6 +8,8 @@ import { cn } from "@/lib/utils";
 const LINKS = [
   { href: "/board", label: "Station board" },
   { href: "/schedule", label: "Schedule" },
+  { href: "/callouts", label: "Call-outs" },
+  { href: "/sim", label: "Phone sim" },
   { href: "/crew", label: "Crew" },
   { href: "/settings", label: "Settings" },
 ];
