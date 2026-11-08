@@ -12,6 +12,7 @@ import {
 import { useId, useState, useTransition } from "react";
 
 import { moveShiftAction } from "@/app/actions";
+import { timeRange } from "@/lib/time-format";
 import type { ShiftCard, WeekView } from "@/server/views";
 
 import { BadgeChip } from "./badge-chip";
@@ -231,7 +232,7 @@ function Card({
       }}
       role="button"
       tabIndex={0}
-      title={`${card.start}-${card.end} · ${card.hours}h paid${card.notes ? ` · ${card.notes}` : ""}`}
+      title={`${timeRange(card.start, card.end)} · ${card.hours}h paid${card.notes ? ` · ${card.notes}` : ""}`}
       style={
         transform
           ? {
@@ -245,16 +246,14 @@ function Card({
       } ${calledOut ? "line-through opacity-50" : ""}`}
     >
       <div className="flex items-center justify-between gap-1 font-medium tabular-nums">
-        <span>
-          {card.start}-{card.end}
-        </span>
+        <span>{timeRange(card.start, card.end)}</span>
         <span className="text-muted-foreground">{card.hours}h</span>
       </div>
       <div className="relative mt-0.5 h-2 overflow-hidden rounded-sm bg-muted">
         {card.segments.map((s) => (
           <span
             key={`${s.stationId}-${s.start}`}
-            title={`${s.shortCode} ${s.start}-${s.end}`}
+            title={`${s.shortCode} ${timeRange(s.start, s.end)}`}
             className="absolute top-0 h-full"
             style={{
               left: `${s.leftPct}%`,

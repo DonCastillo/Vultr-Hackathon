@@ -1,4 +1,5 @@
 import type { Badge } from "@/server/validation";
+import { humanizeTimes } from "@/lib/time-format";
 
 // Live validation badge (task 4.6). Red = a blocking rule (the agent would never assign
 // this), amber = a warning. Hovering or focusing the badge shows what it means in general
@@ -16,7 +17,7 @@ export function BadgeChip({
     <span className="group/badge relative inline-block">
       <span
         tabIndex={0}
-        aria-label={`${badge.label}: ${badge.help} ${badge.message}`}
+        aria-label={`${badge.label}: ${humanizeTimes(badge.help)} ${humanizeTimes(badge.message)}`}
         className={`inline-flex cursor-help items-center gap-0.5 rounded px-1 text-[10px] leading-4 font-semibold whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-ring ${
           block ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-900"
         }`}
@@ -38,8 +39,10 @@ export function BadgeChip({
         <span className="block font-semibold">
           {badge.label} · {block ? "blocks" : "warning"}
         </span>
-        <span className="block">{badge.help}</span>
-        <span className="mt-1 block opacity-80">{badge.message}</span>
+        <span className="block">{humanizeTimes(badge.help)}</span>
+        <span className="mt-1 block opacity-80">
+          {humanizeTimes(badge.message)}
+        </span>
       </span>
     </span>
   );

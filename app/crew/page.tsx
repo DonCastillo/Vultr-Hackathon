@@ -5,6 +5,7 @@ import {
   EditCrewButton,
   ViewCrewName,
 } from "@/components/crew/crew-buttons";
+import { humanizeTimes } from "@/lib/time-format";
 import { getCrewForEdit } from "@/server/crew";
 import { getRosterView, getSettingsView } from "@/server/views";
 
@@ -164,7 +165,7 @@ export default async function CrewPage() {
                 </td>
                 <td className="px-3 py-2 text-xs">
                   {c.availability.map((a) => (
-                    <div key={a}>{a}</div>
+                    <div key={a}>{humanizeTimes(a)}</div>
                   ))}
                 </td>
                 <td className="px-3 py-2 text-xs">

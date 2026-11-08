@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { LabourPanel } from "@/components/board/labour-panel";
+import { humanizeTimes, to12h } from "@/lib/time-format";
 import { buttonVariants } from "@/components/ui/button";
 import { getBoardView } from "@/server/views";
 
@@ -98,7 +99,7 @@ export default async function BoardPage({
                   className="absolute top-0 h-full border-l pl-1 text-[11px] text-muted-foreground"
                   style={{ left: px(h) }}
                 >
-                  {clock(h)}
+                  {to12h(clock(h))}
                 </div>
               ))}
             </div>
@@ -119,7 +120,7 @@ export default async function BoardPage({
                   lane.map((b) => (
                     <div
                       key={`${b.shiftId}-${b.start}`}
-                      title={`${b.crewName} ${b.label}${b.calledOut ? " (called out)" : ""}${b.inactive ? " (inactive: reassign)" : ""}`}
+                      title={`${b.crewName} ${humanizeTimes(b.label)}${b.calledOut ? " (called out)" : ""}${b.inactive ? " (inactive: reassign)" : ""}`}
                       className={`absolute flex items-center overflow-hidden rounded px-1.5 text-xs font-medium text-white shadow-sm ${b.calledOut ? "line-through opacity-40" : ""} ${b.inactive ? "outline-2 outline-offset-[-2px] outline-white outline-dashed" : ""}`}
                       style={{
                         left: px(b.start) + 1,
@@ -145,7 +146,7 @@ export default async function BoardPage({
                       return (
                         <div
                           key={s.start}
-                          title={`${clock(s.start)} ${s.scheduled}/${s.required}${short ? " short" : ""}`}
+                          title={`${to12h(clock(s.start))} ${s.scheduled}/${s.required}${short ? " short" : ""}`}
                           className={`absolute h-full ${short ? (s.scheduled === 0 ? "bg-red-600" : "bg-red-400") : "bg-emerald-500"}`}
                           style={{ left: px(s.start), width: SLOT_PX - 1 }}
                         />
@@ -169,7 +170,7 @@ export default async function BoardPage({
             <ul className="space-y-1 text-sm">
               {view.supervisorGaps.map((g) => (
                 <li key={g} className="text-destructive">
-                  No supervisor on the floor {g}
+                  No supervisor on the floor {humanizeTimes(g)}
                 </li>
               ))}
               {view.shortfalls.map((s) => (
@@ -177,7 +178,7 @@ export default async function BoardPage({
                   <span className="font-medium text-destructive">
                     Short {s.missing}
                   </span>{" "}
-                  · {s.stationName} {s.range}
+                  · {s.stationName} {humanizeTimes(s.range)}
                 </li>
               ))}
             </ul>

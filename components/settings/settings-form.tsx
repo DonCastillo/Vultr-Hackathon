@@ -8,6 +8,7 @@ import {
   updateRuleSettingsAction,
   type ActionResult,
 } from "@/app/actions";
+import { humanizeTimes } from "@/lib/time-format";
 import { Button } from "@/components/ui/button";
 
 // Settings (task 4.8): jurisdiction preset, rule overrides, offer timeout / demo mode,
@@ -131,7 +132,7 @@ export function SettingsForm({
         {view.presetNotes.length > 0 && (
           <ul className="list-disc pl-5 text-xs text-muted-foreground">
             {view.presetNotes.map((n) => (
-              <li key={n}>{n}</li>
+              <li key={n}>{humanizeTimes(n)}</li>
             ))}
           </ul>
         )}

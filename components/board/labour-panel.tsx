@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { timeRange } from "@/lib/time-format";
+
 // Labour % by daypart (task 4.9): scheduled station hours x wage against a projected
 // sales figure the manager types in. Sales projections are a per-browser convenience
 // (localStorage), not store data.
@@ -70,7 +72,7 @@ export function LabourPanel({ dayparts }: { dayparts: Daypart[] }) {
                 <td className="py-1">
                   {d.name}{" "}
                   <span className="text-xs text-muted-foreground">
-                    {d.start}-{d.end}
+                    {timeRange(d.start, d.end)}
                   </span>
                 </td>
                 <td className="py-1 text-right tabular-nums">{d.hours}</td>
