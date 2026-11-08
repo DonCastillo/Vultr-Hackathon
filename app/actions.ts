@@ -4,6 +4,10 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { autofillWeek } from "@/server/autofill";
+import {
+  CoverageTemplateError,
+  saveCoverageTemplate,
+} from "@/server/coverage-template";
 import { createCrew, CrewError, updateCrew } from "@/server/crew";
 import { Jurisdiction } from "@/server/generated/prisma/enums";
 import {
@@ -192,4 +196,50 @@ export async function updateCrewAction(crewId: unknown, input: unknown) {
 
 export async function createCrewAction(input: unknown) {
   return runCrew(() => createCrew(CrewSchema.parse(input)));
+}
+
+const DaypartTimes = z.object({ start: time, end: time });
+const CoverageTemplateSchema = z.object({
+  dayparts: z.object({
+    OVERNIGHT: DaypartTimes,
+    MORNING_RUSH: DaypartTimes,
+    MIDDAY: DaypartTimes,
+    AFTERNOON: DaypartTimes,
+    EVENING_CLOSE: DaypartTimes,
+  }),
+  counts: z.record(
+    z.string(),
+    z.partialRecord(
+      z.enum([
+        "OVERNIGHT",
+        "MORNING_RUSH",
+        "MIDDAY",
+        "AFTERNOON",
+        "EVENING_CLOSE",
+      ]),
+      z.number().int().min(0, "Headcounts can't be negative").max(20),
+    ),
+  ),
+});
+
+export async function saveCoverageTemplateAction(
+  input: unknown,
+): Promise<ActionResult> {
+  try {
+    await saveCoverageTemplate(CoverageTemplateSchema.parse(input));
+    revalidatePath("/settings");
+    revalidatePath("/board");
+    revalidatePath("/schedule");
+    return { ok: true };
+  } catch (err) {
+    if (err instanceof CoverageTemplateError)
+      return { ok: false, error: err.message };
+    if (err instanceof z.ZodError)
+      return { ok: false, error: z.prettifyError(err) };
+    console.error(err);
+    return {
+      ok: false,
+      error: "Something went wrong saving the coverage template.",
+    };
+  }
 }
