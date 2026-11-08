@@ -34,7 +34,7 @@ Cut-line tasks (not counted in the totals above) add up to about 2.5h, which can
 - [x] 1.1 Next.js 15 + TypeScript + Tailwind + shadcn/ui init; ESLint/Prettier (20m)
 - [x] 1.2 `docker-compose.yml` with Postgres 16; `.env.example` (15m)
 - [x] 1.3 Prisma schema: Store, Station, Crew, CrewStation, Cert, Availability, SchoolDay, TimeOff, Shift, StationAssignment, CoverageRule, CallOut, RecoveryPlan, Offer, Message, AuditEvent, RuleConfig (40m)
-- [ ] 1.4 `prisma/seed.ts`: standalone Maple & Mug store (Calgary, Alberta), 9 stations, dayparts, coverage template (20m)
+- [x] 1.4 `prisma/seed.ts`: standalone Maple & Mug store (Calgary, Alberta), 9 stations, dayparts, coverage template (20m)
 - [ ] 1.5 Seed ~20 crew (students/minors, trainees, overnight baker, supervisors, certs incl. one expired) (25m)
 - [ ] 1.6 Seed a full week of shifts + station assignments, including the demo scenario (5:30am headset crew) (30m)
 
