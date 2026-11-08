@@ -123,6 +123,7 @@ export function WeekGrid({ view }: { view: WeekView }) {
                       crewId={row.crewId}
                       date={view.days[i].date}
                       cards={cards}
+                      alignRight={i >= view.days.length - 2}
                       onAdd={() =>
                         setEditing({
                           mode: "create",
@@ -158,12 +159,15 @@ function Cell({
   crewId,
   date,
   cards,
+  alignRight,
   onAdd,
   onEdit,
 }: {
   crewId: string;
   date: string;
   cards: ShiftCard[];
+  /** Last columns open badge tooltips to the left so they stay on screen. */
+  alignRight: boolean;
   onAdd: () => void;
   onEdit: (card: ShiftCard) => void;
 }) {
@@ -178,7 +182,12 @@ function Cell({
     >
       <div className="space-y-1">
         {cards.map((c) => (
-          <Card key={c.id} card={c} onEdit={() => onEdit(c)} />
+          <Card
+            key={c.id}
+            card={c}
+            alignRight={alignRight}
+            onEdit={() => onEdit(c)}
+          />
         ))}
       </div>
       {cards.length === 0 && (
@@ -195,7 +204,15 @@ function Cell({
   );
 }
 
-function Card({ card, onEdit }: { card: ShiftCard; onEdit: () => void }) {
+function Card({
+  card,
+  alignRight,
+  onEdit,
+}: {
+  card: ShiftCard;
+  alignRight: boolean;
+  onEdit: () => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
       id: `shift:${card.id}`,
@@ -253,7 +270,11 @@ function Card({ card, onEdit }: { card: ShiftCard; onEdit: () => void }) {
       {card.badges.length > 0 && (
         <div className="mt-0.5 flex flex-wrap gap-0.5">
           {card.badges.map((b) => (
-            <BadgeChip key={`${b.label}-${b.message}`} badge={b} />
+            <BadgeChip
+              key={`${b.label}-${b.message}`}
+              badge={b}
+              alignRight={alignRight}
+            />
           ))}
         </div>
       )}
