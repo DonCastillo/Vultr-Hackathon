@@ -46,7 +46,7 @@ Cut-line tasks (not counted in the totals above) add up to about 2.5h, which can
 - [x] 2.5 `server/rules/coverage.ts`: required vs. scheduled per station per 15-min slot; shortfalls; supervisor rule (40m)
 - [x] 2.6 `server/solver/rebalance.ts`: greedy + backtracking station reassignment by priority (50m)
 - [x] 2.7 `server/rank.ts`: replacement scoring (no-OT, fairness, reliability, seniority) + shift-extension candidates (30m)
-- [ ] 2.8 vitest suite for all of the above (edge cases from the plan's Verification section) (45m)
+- [x] 2.8 vitest suite for all of the above (edge cases from the plan's Verification section) (45m)
 
 ## 3. LLM: Anthropic Claude + Vultr Serverless Inference | 2.25h
 - [ ] 3.1 `server/llm/index.ts`: provider-agnostic interface, `LLM_PROVIDER` switch, shared prompts + zod schemas (20m)
