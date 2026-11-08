@@ -22,7 +22,9 @@
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:seed": "prisma db seed",
-    "db:reset": "prisma migrate reset --force && prisma db seed"
+    "db:reset": "prisma migrate reset --force && prisma db seed",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
@@ -42,7 +44,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/node": "^24.19.2",
     "@types/pg": "8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
@@ -55,6 +57,7 @@
     "prisma": "7.10.1",
     "tailwindcss": "^4",
     "tsx": "4.23.15",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "5.0.5"
   }
 }

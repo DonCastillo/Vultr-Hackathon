@@ -61,11 +61,11 @@ There is one Next.js app; the split is by folder:
 
 - **Frontend:** `app/` (pages) and `components/`. `lib/` holds UI-only helpers such as shadcn's `cn`.
 - **Backend:** `server/` (db, rules, solver, rank, llm, sms, outreach, audit).
-  - Every file there starts with `import "server-only"`, so the build fails if browser code imports it.
+  - Every file there starts with `import "server-only"`, so the build fails if browser code imports it. Scripts that run `server/` code outside Next.js (the seed, the worker) need `tsx --conditions=react-server`, or `server-only` throws.
   - `worker/` is a separate process that reuses `server/`.
   - The database schema and seed live in `prisma/`.
 - **Route handlers and server actions** (`app/api/**` and `"use server"` functions) stay thin: validate input, then call `server/`. Client components (`"use client"`) never import `server/`.
-- **Pure logic stays framework-free:** `server/rules`, `server/solver` and `server/rank.ts`, so vitest can test them. `vitest.config.ts` aliases `server-only` to an empty module.
+- **Pure logic stays framework-free:** `server/rules`, `server/solver` and `server/rank.ts`, so vitest can test them. `vitest.config.mts` aliases `server-only` to an empty module.
 
 - **Rules decide, the LLM talks.** These are pure, unit-tested TypeScript with no LLM involvement:
   - eligibility, overtime, youth labour limits, rest gap/clopen, cert expiry and coverage: `server/rules/`

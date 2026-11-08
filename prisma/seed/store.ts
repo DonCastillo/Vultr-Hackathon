@@ -7,9 +7,12 @@ import type {
   Daypart,
   PrismaClient,
 } from "../../server/generated/prisma/client";
+import { ruleConfigDefaults } from "../../server/rules/presets";
 import { addDays, date, time, todayIn, weekday } from "./time";
 
 export const TIMEZONE = "America/Edmonton";
+
+const alberta = ruleConfigDefaults("ALBERTA");
 
 /** Station short codes, used by later seed steps to look stations up. */
 export type StationCode =
@@ -168,14 +171,8 @@ export async function seedStore(db: PrismaClient) {
       // 8h rest between shifts, under-15s at most 2h on school days and not past 9pm.
       ruleConfig: {
         create: {
-          weeklyOtHours: 44,
-          dailyOtHours: 8,
-          minRestHours: 8,
-          maxConsecutiveDays: 6,
-          youthUnderAge: 15,
-          youthMaxSchoolDayHours: 2,
-          youthMaxSchoolWeekHours: null,
-          youthLatestEnd: time("21:00"),
+          ...alberta,
+          youthLatestEnd: time(alberta.youthLatestEnd),
           offerTimeoutSec: 600,
           demoMode: false,
           smsProvider: "SIM",
