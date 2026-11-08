@@ -2,6 +2,7 @@ import "server-only";
 
 import type {
   CertType,
+  Daypart,
   ShiftStatus,
   TimeOffStatus,
   TrainingLevel,
@@ -68,6 +69,26 @@ export interface ShiftInfo extends Interval {
   crewId: string;
   breakMinutes: number;
   status: ShiftStatus;
+}
+
+/** A station block inside a shift (StationAssignment). */
+export interface AssignmentInfo extends Interval {
+  id: string;
+  shiftId: string;
+  crewId: string;
+  stationId: string;
+}
+
+/** Minimum headcount for a station in a daypart (CoverageRule). */
+export interface CoverageRuleInfo {
+  stationId: string;
+  /** 0-6; null = every day. A weekday-specific rule overrides the every-day one. */
+  weekday: number | null;
+  daypart: Daypart;
+  start: TimeOfDay;
+  /** May be earlier than `start`: the daypart runs past midnight. */
+  end: TimeOfDay;
+  minCount: number;
 }
 
 /** A shift still counts toward hours, overlap and rest unless it was cancelled or called out. */
