@@ -85,8 +85,8 @@ Cut-line tasks (not counted in the totals above) add up to about 2.5h, which can
 
 ## 6. Deploy to Vultr | 1.75h
 - [x] 6.1 Production `Dockerfile` (Next.js standalone) + worker image (25m)
-- [ ] 6.2 Compose prod profile: app, worker, postgres, Caddy; `Caddyfile` for `<ip>.sslip.io` auto-TLS (20m)
-- [ ] 6.3 VM setup: Docker install, firewall (22/80/443), clone repo, `.env`, `compose up`, migrate + seed (40m)
+- [x] 6.2 Compose prod profile: app, worker, postgres, Caddy; `Caddyfile` for `<ip>.sslip.io` auto-TLS (20m)
+- [x] 6.3 VM setup: Docker install, firewall (22/80/443), clone repo, `.env`, `compose up`, migrate + seed (40m)
 - [ ] 6.4 Smoke-test the full demo flow on the public URL (20m)
 - [ ] 6.5 ✂️ Wire the Twilio webhook to `/api/sms/inbound` and test on a real phone (15m) *(outside phase total)*
 
