@@ -87,19 +87,19 @@ Cut-line tasks (not counted in the totals above) add up to about 2.5h, which can
 - [x] 6.1 Production `Dockerfile` (Next.js standalone) + worker image (25m)
 - [x] 6.2 Compose prod profile: app, worker, postgres, Caddy; `Caddyfile` for `<ip>.sslip.io` auto-TLS (20m)
 - [x] 6.3 VM setup: Docker install, firewall (22/80/443), clone repo, `.env`, `compose up`, migrate + seed (40m)
-- [ ] 6.4 Smoke-test the full demo flow on the public URL (20m)
+- [x] 6.4 Smoke-test the full demo flow on the public URL (20m)
 - [ ] 6.5 ✂️ Wire the Twilio webhook to `/api/sms/inbound` and test on a real phone (15m) *(outside phase total)*
 
 ## 7. Polish & README | 2h
 - [ ] 7.1 "Reset demo" button (reseed) for judges (15m)
 - [ ] 7.2 UI polish: empty states, loading states, toasts, mobile check of manager views (45m)
-- [ ] 7.3 README: problem, Vultr services used (Cloud Compute, plus Serverless Inference if enabled), LLM provider switch, architecture diagram, setup, use case, how the agent runs real tasks (45m)
+- [x] 7.3 README: problem, Vultr services used (Cloud Compute, plus Serverless Inference if enabled), LLM provider switch, architecture diagram, setup, use case, how the agent runs real tasks (45m)
 - [ ] 7.4 Run vitest + E2E checklist; race test (two simultaneous accepts) (15m)
 
 ## 8. Submission assets | 3h
 - [ ] 8.1 Demo script: a 4:40am sick text → red board → recovery plan → outreach → covered (20m)
-- [ ] 8.2 Record + edit a 2–3 min demo video (75m)
-- [ ] 8.3 Slide deck (problem, solution, architecture, business value, Vultr usage) (45m)
+- [x] 8.2 Record + edit a 2–3 min demo video (75m)
+- [x] 8.3 Slide deck (problem, solution, architecture, business value, Vultr usage) (45m)
 - [ ] 8.4 Cover image (15m)
-- [ ] 8.5 Submit on lablab.ai (title, descriptions, tags, repo, demo URL, video, slides) **before 5:00 PM MDT Nov 8** (15m)
+- [x] 8.5 Submit on lablab.ai (title, descriptions, tags, repo, demo URL, video, slides) **before 5:00 PM MDT Nov 8** (15m)
 - [ ] 8.6 ✂️ Post on Vultr Community (10m) *(outside phase total)*

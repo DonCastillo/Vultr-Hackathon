@@ -1,7 +1,29 @@
 # CrewShift: AI crew scheduler for an independent coffee shop (Vultr Agent Rush, Track 2)
 
+## Status: submitted (Nov 8, 2026)
+The project was submitted on lablab.ai before the deadline, with the public repo, the live app, a demo video and slides.
+
+- **Live app:** https://104.207.156.157.sslip.io, running on one Vultr Cloud Compute VM (Seattle, Ubuntu 24.04, 2 vCPU / 4 GB) with Docker Compose (`caddy`, `web`, `worker`, `postgres`, plus a one-shot `migrate` job).
+- **Repo:** https://github.com/DonCastillo/Vultr-Hackathon (MIT).
+- **LLM in the live demo:** Anthropic Claude Haiku (`LLM_PROVIDER=anthropic`). The Vultr Serverless Inference adapter is built and tested, but the gift-code credits never arrived, so it was not switched on (P.3).
+- **Tests:** 294 vitest tests in 21 files, all passing.
+
+### What shipped differently from this plan
+The rest of this document is the original design, kept as written. These are the places where the build differs:
+
+| Planned | Shipped |
+|---|---|
+| SMS providers `sim` and `twilio` in `server/sms/` | `server/sms.ts`, phone simulator only. Twilio was cut (P.7, 6.5). |
+| REST routes: `POST /api/callouts`, `/apply`, `/api/sms/inbound` | Server actions in `app/actions.ts`: `createCallOutAction`, `approveOutreachAction`, `simSendAction`. There is no `app/api/`. |
+| SSE stream `GET /api/callouts/[id]/events` | Cut. The call-out, call-out list and `/sim` pages re-fetch server data every 2.5s (`components/live-refresh.tsx`). |
+| Plan moves shown as a diff on the station board | Moves are listed on the call-out page. |
+| Conditional replies ("can be there by 7") give partial cover | Cut (5.11). `classifyReply` still detects conditional replies and questions, but anything other than yes or no gets a clarifying text. |
+| Pages under `app/(app)/schedule/week`, `schedule/day/[date]` | Flat routes: `/schedule` (week), `/board` (day station board), `/callouts`, `/callouts/[id]`, `/crew`, `/settings`, `/sim`. |
+| "Reset demo" button (7.1) | Not built. Reseed with `pnpm db:seed` locally, or `docker compose --profile prod run --rm migrate prisma db seed` on the VM. |
+| Labour % and auto-fill (cut-line items) | Both shipped: labour % on the station board (4.9) and auto-fill on the schedule page via `server/autofill.ts` (4.10). |
+
 ## Context
-Hackathon deadline: **Nov 8, 2026, 5:00 PM MDT** (~30h). The repo is empty (README, LICENSE, `plan/` with the requirements PDF).
+Hackathon deadline: **Nov 8, 2026, 5:00 PM MDT** (~30h). At the start the repo was empty (README, LICENSE, `plan/` with the requirements PDF).
 Track 2 "Powering the Future of Work" asks for a production-style web app with multi-step agentic workflows, with a Vultr VM as the backend. Serverless Inference is optional for Track 2. The LLM layer supports **two providers behind one switch**: Anthropic Claude (used for development now, while the Vultr gift codes are out of stock) and Vultr Serverless Inference (the preferred demo default once credits arrive, since judges score "Application of Technology" and Vultr is the sponsor).
 
 **Product:** crew management for a **standalone, independently owned** quick-service coffee and donut shop. It runs like a Tim Hortons-style store (5am open, a huge morning drive-thru rush, an overnight baker), but it is one location with no chain or franchise behind it.
@@ -65,6 +87,7 @@ Dayparts: Overnight (11pm–5am), **Morning Rush (5:30–10am, peak)**, Midday (
 `Store` (single row: name, jurisdiction, timezone, open hours), `Station` (name, priority, requiresCert), `Crew` (name, phone, birthdate, isStudent, wage, seniority, reliability), `CrewStation` (level), `Cert` (type, expiresAt), `Availability`, `TimeOff`, `SchoolDay` (date), `Shift` (crewId, start, end), `StationAssignment` (shiftId, stationId, start, end), `CoverageRule` (stationId, weekday, daypart, minCount), `CallOut`, `RecoveryPlan` (moves JSON, shortfall JSON, summary), `Offer` (callOutId, crewId, stationId, kind: callin/extend, rank, status, expiresAt), `Message`, `AuditEvent`, `RuleConfig`.
 
 ## Key files
+*(As planned. For the files, routes and API as built, see "What shipped differently" under Status.)*
 - `server/rules/{eligibility,youth,overtime,coverage}.ts` + `server/rules/presets.ts` (AB/ON/BC/US): pure, with vitest tests
 - `server/solver/rebalance.ts`, `server/rank.ts`
 - `server/llm/` (`index.ts` provider-agnostic interface, `anthropic.ts`, `vultr.ts`) + prompts (parseCallout, summarizePlan, composeOffer, classifyReply), zod-validated with keyword fallback
@@ -87,6 +110,7 @@ Dayparts: Overnight (11pm–5am), **Morning Rush (5:30–10am, peak)**, Midday (
 Buffer: about 6h. **Cut-line if late:** drop auto-fill, labour %, Twilio and conditional replies first. Keep the station board, call-out recovery plan and phone sim.
 
 ## Prerequisites you must do (account steps I can't do)
+*(Outcome: 1, 2a and 3 done. 2 stayed blocked on gift codes, and 4 was cut.)*
 1. Create a Vultr account with a fresh email and apply the hackathon gift code (check for $200)
 2. Enable Serverless Inference and create an API key (blocked until gift codes are replenished)
 2a. Create an Anthropic API key (console.anthropic.com) for development in the meantime

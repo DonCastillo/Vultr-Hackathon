@@ -86,10 +86,22 @@ web / worker ──▶ LLM: Anthropic Claude  |  Vultr Serverless Inference
 
 Detailed design: [`plan/architecture.md`](plan/architecture.md) and [`plan/models.md`](plan/models.md).
 
-## Stack
+## Tech stack
 
-Next.js 15 (App Router, TypeScript) · Tailwind + shadcn/ui · dnd-kit · Postgres 16 + Prisma 7 ·
-zod · vitest (294 tests) · Anthropic SDK and OpenAI SDK (for Vultr) · Docker Compose · Caddy
+| Layer | Technology |
+|---|---|
+| **Language and runtime** | TypeScript 5 on Node.js 24.22+ LTS |
+| **Web app** | Next.js 15 (App Router, server actions, route handlers) with React 19 |
+| **UI** | Tailwind CSS 4, shadcn/ui on Base UI, lucide-react icons, dnd-kit for drag-and-drop on the station board |
+| **Live updates** | The call-out, call-out list and phone sim pages re-fetch server data every 2.5s, so the audit timeline updates live |
+| **Database** | PostgreSQL 16 with Prisma 7 (`@prisma/adapter-pg` driver adapter), plus raw SQL migrations for partial unique indexes |
+| **Background worker** | A separate Node process (run with `tsx`) that polls every 5s for expired offers |
+| **LLM** | Anthropic Claude Haiku (`@anthropic-ai/sdk`) or Vultr Serverless Inference (`openai` SDK, OpenAI-compatible API), chosen with `LLM_PROVIDER` |
+| **Validation** | zod schemas for every LLM response and every form input |
+| **SMS** | Provider abstraction: an in-app phone simulator (`/sim`); a real carrier such as Twilio would plug in behind the same interface |
+| **Testing and quality** | vitest (294 tests on the rules, solver, ranking, LLM fallbacks and outreach), ESLint, Prettier |
+| **Infrastructure** | Vultr Cloud Compute VM running Docker Compose: `caddy`, `web`, `worker`, `postgres` and a one-shot `migrate` job |
+| **TLS and proxy** | Caddy 2.10 with automatic Let's Encrypt certificates on `<ip>.sslip.io` |
 
 ## Run locally
 
